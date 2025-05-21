@@ -234,8 +234,8 @@ const Navbar = () => {
 
               <li
                 className="cursor-pointer hover:text-purple-700 transition"
-                onClick={() => navigate("/counselor-articles")}
-                title="Your Posts"
+                onClick={() => navigate("/counselor-dashboard")}
+                title="dashboard"
               >
                 DashBoard
               </li>
@@ -249,7 +249,7 @@ const Navbar = () => {
               <li
                 className="cursor-pointer hover:text-purple-700 transition"
                 onClick={() => navigate("/counselor-articles")}
-                title="Your Posts"
+                title="setavailablity"
               >
                 set Availablity
               </li>
