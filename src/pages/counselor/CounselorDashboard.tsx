@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+import { IconPlus } from '@tabler/icons-react';
+import Navbar from './component/Navbar';
 
 export default function CounselorDashboard() {
   interface MyJwtPayload {
