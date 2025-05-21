@@ -101,7 +101,7 @@ export default function Calendar() {
     };
 
     fetchSchedule();
-  }, [currentMonth]);
+  }, [currentMonth,counselorId]);
 
   const getDateSchedule = (date: Date): TimeSlot[] => {
     const dateStr = format(date, "yyyy-MM-dd");
