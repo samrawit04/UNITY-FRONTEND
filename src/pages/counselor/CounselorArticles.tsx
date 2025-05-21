@@ -1,32 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { IconPlus } from '@tabler/icons-react';
 import Navbar from './component/Navbar';
+import { jwtDecode } from 'jwt-decode';
 
 const CounselorArticles = () => {
+  type MyJwtPayload = { id: string; email: string; [key: string]: any };
+
   const [articles, setArticles] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [title, settitle] = useState('');
   const [description, setdescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const counselorId = "ae47db9b-5d4f-4033-8d84-ed7a250975ce"; // 🔁 Replace with dynamic value later
+  // Decode token on mount to get userId
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const decoded = jwtDecode<MyJwtPayload>(token);
+        const userId = decoded.id;
+        setUserId(userId);
+      } catch (err) {
+        console.error('userID', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // Fetch articles
   const fetchArticles = async () => {
     try {
-      const res = await fetch('http://localhost:3000/articles');
+      const res = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
       const data = await res.json();
-      setArticles(data.reverse()); // Show latest first
+      setArticles(data.reverse());
     } catch (err) {
       console.error('Error fetching articles:', err);
     }
   };
 
   useEffect(() => {
-    fetchArticles();
-  }, []);
+    if (userId) {
+      fetchArticles();
+    }
+  }, [userId]);
 
   // Post new article
   const handlePost = async () => {
@@ -36,7 +59,7 @@ const CounselorArticles = () => {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:3000/articles/${counselorId}`, {
+      const res = await fetch(`http://localhost:3000/articles/${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,18 +87,22 @@ const CounselorArticles = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100 relative font-sans">
       {/* Navbar */}
-     <Navbar />
+      <Navbar />
 
       {/* Main */}
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-[#4b2a75] mb-8 text-center">Your Articles</h1>
+        <h1 className="text-4xl font-bold text-[#4b2a75] mb-8 text-center">
+          Your Articles
+        </h1>
 
         {/* Article Form */}
         {showForm && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-[#4b2a75] mb-4">Write a description</h2>
+            <h2 className="text-xl font-semibold text-[#4b2a75] mb-4">
+              Write a description
+            </h2>
 
             {error && <p className="text-red-500 mb-4">{error}</p>}
 
