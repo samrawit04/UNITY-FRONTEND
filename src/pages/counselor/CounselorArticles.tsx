@@ -10,12 +10,12 @@ const CounselorArticles = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const counselorId = "adfe7a57-334e-4623-80c8-08c8b9be70a2"; // 🔁 Replace with dynamic value later
+  const counselorId = "ae47db9b-5d4f-4033-8d84-ed7a250975ce"; // 🔁 Replace with dynamic value later
 
   // Fetch articles
   const fetchArticles = async () => {
     try {
-      const res = await fetch('http://localhost:3001/articles');
+      const res = await fetch('http://localhost:3000/articles');
       const data = await res.json();
       setArticles(data.reverse()); // Show latest first
     } catch (err) {
@@ -35,7 +35,7 @@ const CounselorArticles = () => {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:3001/articles/${counselorId}`, {
+      const res = await fetch(`http://localhost:3000/articles/${counselorId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -285,7 +285,7 @@ const userId = decoded.id; // ✅ Now this works!
         <ul className="flex items-center gap-8 text-gray-700 font-medium">
           <li
             className="cursor-pointer hover:text-purple-700 transition"
-            onClick={() => alert("Your Posts clicked")}
+            onClick={() => navigate("/counselor-articles")}
             title="Your Posts"
           >
             Your Posts
