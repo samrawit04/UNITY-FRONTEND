@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {jwtDecode} from "jwt-decode";
+import axios from "axios";
 
 // Define the shape of your JWT payload
 type MyJwtPayload = { id: string; email: string; [key: string]: any };
@@ -10,6 +11,8 @@ const ProfileForm = () => {
 
   // State to hold userId extracted from token
   const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -23,28 +26,54 @@ const ProfileForm = () => {
     specialization: "",
     languages: [] as string[],
     profilePicture: null as File | null,
+    existingProfilePicture: "",
+    existingCertificateName: "",
   });
 
-  // Refs for hidden file inputs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const certInputRef = useRef<HTMLInputElement>(null);
-
-  // Decode token on mount to get userId
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
+  
+  // Decode token on mount to get userId 
+   useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
       try {
         const decoded = jwtDecode<MyJwtPayload>(token);
-        setUserId(decoded.id);
-      } catch (error) {
-        console.error("Invalid token", error);
-        setUserId(null);
+        const id = decoded.id;
+        setUserId(id);
+
+        const res = await axios.get(`http://localhost:3000/counselors/profile/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = res.data;
+
+        setForm((prev) => ({
+          ...prev,
+          phone: data.phoneNumber || "",
+          address: data.addres || "",
+          gender: data.gender || "",
+          payment: data.preferredPaymentMethod || "",
+          bank: data.bankAccountOrPhone || "",
+          about: data.bio || "",
+          specialization: data.specialization || "",
+          languages: data.languagesSpoken || [],
+          existingProfilePicture: data.profilePicture || "",
+          existingCertificateName: data.cerificate?.[0] || "",
+        }));
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+    fetchProfile();
   }, []);
+    
 
   // Handle input changes
-  const handleChange = (
+ const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type, checked, files } = e.target as any;
@@ -75,7 +104,7 @@ const ProfileForm = () => {
     switch (form.payment) {
       case "Bank Transfer":
         return "Your Bank Account";
-      case "Mobile Money":
+      case "Telebirr Payment":
         return "Your Mobile Phone";
       default:
         return "Bank information";
@@ -83,79 +112,56 @@ const ProfileForm = () => {
   };
 
   // Submit handler: build FormData and send PATCH request
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!userId) {
-      alert("User not authenticated. Please login.");
+      alert("User not authenticated.");
       return;
     }
 
+    const formData = new FormData();
+    formData.append("userId", userId);
+    formData.append("phoneNumber", form.phone);
+    formData.append("addres", form.address);
+    formData.append("gender", form.gender);
+    formData.append("specialization", form.specialization);
+    formData.append("bio", form.about);
+    formData.append("preferredPaymentMethod", form.payment);
+    formData.append("bankAccountOrPhone", form.bank);
+
+    form.languages.forEach((lang) => {
+      formData.append("languagesSpoken", lang);
+    });
+
+    if (form.profilePicture) {
+      formData.append("profilePicture", form.profilePicture);
+    }
+
+    if (form.cerification) {
+      formData.append("cerificate", form.cerification);
+    }
+
     try {
-      const formData = new FormData();
-
-      // Append userId
-      formData.append("userId", userId);
-
-      // Append text fields if present
-      if (form.phone) formData.append("phoneNumber", form.phone);
-      if (form.address) formData.append("addres", form.address); // Note backend typo "addres"
-      if (form.gender) formData.append("gender", form.gender);
-      if (form.specialization) formData.append("specialization", form.specialization);
-      if (form.about) formData.append("bio", form.about);
-      if (form.payment) formData.append("preferredPaymentMethod", form.payment);
-      if (form.bank) formData.append("bankAccountOrPhone", form.bank);
-
-      // Append languages spoken (array)
-      form.languages.forEach((lang) => {
-        formData.append("languagesSpoken", lang);
-      });
-
-      // Append files if present
-      if (form.profilePicture) {
-        formData.append("profilePicture", form.profilePicture);
-      }
-      if (form.cerification) {
-        formData.append("certificate", form.cerification);
-      }
-
-      // Send PATCH request to backend
-      const response = await fetch("/counselors/complete-profile", {
+      const res = await fetch("http://localhost:3000/counselors/complete-profile", {
         method: "PATCH",
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to submit profile");
+      if (!res.ok) {
+        const errorData = await res.text();
+        throw new Error(errorData || "Failed to submit");
       }
 
-      const data = await response.json();
-      console.log("Profile updated:", data);
-
-      // Redirect on success
+      const result = await res.json();
+      console.log("Profile submitted:", result);
       navigate("/counselor-dashboard");
     } catch (error: any) {
-      console.error("Error submitting profile:", error);
-      alert(error.message || "Something went wrong");
+      console.error("Submission error:", error);
+      alert(error.message);
     }
   };
 
-  // "Later" button handler
-  const handleLater = () => {
-    navigate("/counselor-dashboard");
-  };
-
-  // Show loading or login prompt if no userId
-  // if (!userId) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center p-4">
-  //       <p className="text-purple-700 text-lg">
-  //         Please login to complete your profile.
-  //       </p>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="min-h-screen bg-purple-100 flex flex-col items-center justify-center p-4">
@@ -164,21 +170,22 @@ const ProfileForm = () => {
         <div className="flex flex-col items-center mb-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
-              {form.profilePicture ? (
-                <img
-                  src={URL.createObjectURL(form.profilePicture)}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <svg
-                  className="w-12 h-12 text-gray-500"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
-                </svg>
-              )}
+             {form.profilePicture ? (
+  <img
+    src={URL.createObjectURL(form.profilePicture)}
+    alt="Profile"
+    className="w-full h-full object-cover"
+  />
+) : form.existingProfilePicture ? (
+  <img
+    src={`http://localhost:3000/uploads/profile-pictures/${form.existingProfilePicture}`}
+    alt="Profile"
+    className="w-full h-full object-cover"
+  />
+) : (
+  <svg>...</svg>
+)}
+
             </div>
             <button
               type="button"
@@ -210,7 +217,7 @@ const ProfileForm = () => {
             />
           </div>
           <h2 className="mt-4 text-2xl font-semibold text-purple-800">
-            Complete Your Profile
+            Edit Your Profile
           </h2>
         </div>
 
@@ -257,8 +264,7 @@ const ProfileForm = () => {
             >
               <option value="">Preferred payment method</option>
               <option>Bank Transfer</option>
-              <option>Mobile Money</option>
-              <option>Paypal</option>
+              <option>Telebirr Payment</option>
             </select>
 
             <input
@@ -274,8 +280,8 @@ const ProfileForm = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="cerification"
-                value={form.cerification?.name || ""}
+                placeholder="certificate"
+                value={form.cerification?.name || form.existingCertificateName}
                 readOnly
                 onClick={() => triggerFileInput(certInputRef)}
                 className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none cursor-pointer pr-10"
@@ -327,6 +333,7 @@ const ProfileForm = () => {
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none resize-none h-48"
             />
+            
             <div className="bg-purple-100 rounded-md border border-gray-300 p-4 h-48 flex flex-col">
               <span className="block mb-2 font-medium text-gray-700">
                 Language spoken
@@ -362,7 +369,7 @@ const ProfileForm = () => {
             </button>
             <button
               type="button"
-              onClick={handleLater}
+              onClick={() => navigate("/counselor-dashboard")}
               className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-12 rounded-lg shadow-md transition-all"
             >
               Later

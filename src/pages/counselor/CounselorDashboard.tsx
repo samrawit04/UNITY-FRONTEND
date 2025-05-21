@@ -106,9 +106,7 @@ const userId = decoded.id; // ✅ Now this works!
   return (
     <div className="min-h-screen bg-gray-100 relative font-sans">
       {/* Navbar */}
-     
 <Navbar />
-
       {/* Main Dashboard Box */}
       <main className="max-w-[1280px] mx-auto mt-12 bg-purple-100 rounded-xl p-10 shadow-lg min-h-[600px]">
         {/* Welcome + Job Application side by side */}
@@ -121,7 +119,7 @@ const userId = decoded.id; // ✅ Now this works!
             className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition whitespace-nowrap"
             aria-label="Job Application"
           >
-          complete profile
+          Edit Your profile
           </button>
         </section>
 

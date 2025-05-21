@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import React, { useEffect, useRef, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
@@ -15,10 +15,9 @@ const Navbar = () => {
       const [showNotifications, setShowNotifications] = useState(false);
       const [messageTo, setMessageTo] = useState("all");
       const [messageText, setMessageText] = useState("");
-      
-    const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     
+    const [profile, setProfile] = useState(null);
     useEffect(() => {
       const fetchProfile = async () => {
         const token = localStorage.getItem("token");
