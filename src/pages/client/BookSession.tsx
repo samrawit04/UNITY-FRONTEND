@@ -15,7 +15,7 @@ import {
   parse,
 } from "date-fns";
 interface TimeSlot {
-  id?: number;
+  id?: string;
   start: string;
   end: string;
 }
@@ -26,7 +26,7 @@ interface DaySchedule {
 }
 
 const API_URL = "http://localhost:3000";
-const counselorId = 1;
+const counselorId = "8a354908-ec2a-40bc-ad64-6f7e598b78be";
 
 const BookSession = () => {
   const [currentStep, setCurrentStep] = useState(1);

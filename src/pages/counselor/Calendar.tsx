@@ -17,7 +17,7 @@ import {
 } from "date-fns";
 
 interface TimeSlot {
-  id?: number;
+  id?: string;
   start: string;
   end: string;
 }
@@ -29,13 +29,20 @@ interface DaySchedule {
 
 const API_URL = "http://localhost:3000/schedule";
 
-const counselorId = 1; // Static counselorId for this example
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [newSlot, setNewSlot] = useState<TimeSlot>({ start: "", end: "" });
+  const [counselorId, setCounselorId] = useState<string | null>(null);
 
   const today = startOfToday();
 
@@ -43,6 +50,18 @@ export default function Calendar() {
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const decoded = parseJwt(token);
+      if (decoded && decoded.id) {
+        setCounselorId(decoded.id);
+      } else if (decoded && decoded.userId) {
+        setCounselorId(decoded.userId);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -161,20 +180,17 @@ export default function Calendar() {
       if (!startTime) {
         return { start: "", end: "" };
       }
-      // Parse the start time (e.g. "13:30")
-      const parsedTime = parse(startTime, "HH:mm", new Date());
-      // Add one hour
-      const endTimeDate = addHours(parsedTime, 1);
-      // Format back to "HH:mm"
-      const endTime = format(endTimeDate, "HH:mm");
 
+      const parsedTime = parse(startTime, "HH:mm", new Date());
+      const endTimeDate = addHours(parsedTime, 1);
+      const endTime = format(endTimeDate, "HH:mm");
       return { start: startTime, end: endTime };
     });
   };
 
   return (
     <>
-      <Navbar/>
+      <Navbar />
       <div className="flex gap-8 p-8">
         <div className="w-96 rounded-lg bg-white shadow">
           <div className="flex items-center justify-between border-b px-6 py-2">
