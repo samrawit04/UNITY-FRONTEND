@@ -25,6 +25,13 @@ interface DaySchedule {
   slots: TimeSlot[];
 }
 
+interface Therapist {
+  id: string;
+  firstName: string;
+  lastName: string;
+  image: string;
+}
+
 const API_URL = "http://localhost:3000";
 const counselorId = "8a354908-ec2a-40bc-ad64-6f7e598b78be";
 
@@ -36,7 +43,6 @@ const BookSession = () => {
 
   const params = useParams<{ yearMonth?: string }>();
 
-  // Parse yearMonth param or default to current date
   const initialMonth = params.yearMonth
     ? parse(params.yearMonth, "yyyy-MM", new Date())
     : new Date();
@@ -47,6 +53,8 @@ const BookSession = () => {
   );
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const today = startOfToday();
 
@@ -54,6 +62,17 @@ const BookSession = () => {
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+  useEffect(() => {
+    axios
+      .get("http://localhost:3000/counselors")
+      .then((res) => {
+        setTherapists(res.data);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch therapists:", err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -135,8 +154,6 @@ const BookSession = () => {
       await axios.post(`${API_URL}/api/bookings`, {
         scheduleId: selectedSlot.id,
         counselorId,
-        clientName: "lidiya",
-        clientEmail: "lidiya@gmail.com",
       });
 
       alert("Booking confirmed!");
@@ -169,27 +186,29 @@ const BookSession = () => {
     { id: 5, title: "Confirmation" }, // Added a title for the confirmation step
   ];
 
-  const therapists = [
-    {
-      id: 1,
-      name: "Dr. Sarah Johnson",
-      image:
-        "https://plus.unsplash.com/premium_photo-1670071482460-5c08776521fe?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
-    {
-      id: 2,
-      name: "Dr. Michael Chen",
-      image:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
-    {
-      id: 3,
-      name: "Dr. Emily Williams",
-      image:
-        "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=1000&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
-  ];
+  // const therapists = [
+  //   {
+  //     id: 1,
+  //     name: "Dr. Sarah Johnson",
+  //     image:
+  //       "https://plus.unsplash.com/premium_photo-1670071482460-5c08776521fe?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
+  //   },
+  //   {
+  //     id: 2,
+  //     name: "Dr. Michael Chen",
+  //     image:
+  //       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
+  //   },
+  //   {
+  //     id: 3,
+  //     name: "Dr. Emily Williams",
+  //     image:
+  //       "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=1000&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
+  //   },
+  // ];
 
+
+  
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
@@ -262,37 +281,52 @@ const BookSession = () => {
                 Choose Your Therapist
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {therapists.map((therapist) => (
-                  <div
-                    key={therapist.id}
-                    onClick={() => setSelectedTherapist(therapist)}
-                    className={`border rounded-lg p-6 cursor-pointer transition-colors ${
-                      selectedTherapist?.id === therapist.id
-                        ? "border-[#4b2a75] bg-[#f5f0ff]"
-                        : "hover:border-[#4b2a75]"
-                    }`}>
-                    <div>
-                      <img
-                        src={therapist.image}
-                        alt={therapist.name}
-                        className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-                      />
+                {therapists.map((therapist) => {
+                  const firstLetter =
+                    therapist.firstName?.[0]?.toUpperCase() ||
+                    therapist.lastName?.[0]?.toUpperCase() ||
+                    "?";
+
+                  return (
+                    <div
+                      key={therapist.id}
+                      onClick={() => setSelectedTherapist(therapist)}
+                      className={`border rounded-lg p-6 cursor-pointer transition-colors ${
+                        selectedTherapist?.id === therapist.id
+                          ? "border-[#4b2a75] bg-[#f5f0ff]"
+                          : "hover:border-[#4b2a75]"
+                      }`}>
+                      <div className="flex justify-center mb-4">
+                        {therapist.image ? (
+                          <img
+                            src={`http://localhost:3000/uploads/profile-pictures/${therapist.image}`}
+                            alt={`${therapist.firstName} ${therapist.lastName}`}
+                            className="w-24 h-24 rounded-full mx-auto object-cover"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-[#4b2a75] flex items-center justify-center mx-auto">
+                            <span className="text-white text-4xl font-bold">
+                              {firstLetter}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <h3 className="text-lg font-semibold text-center mb-2">
-                        {therapist.name}
+                        {therapist.firstName} {therapist.lastName}
                       </h3>
+                      <button
+                        className="mt-4 text-sm text-[#4b2a75] underline hover:text-[#371f5c] px-3 py-1 rounded transition-colors duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/counselor-profile", {
+                            state: { therapist },
+                          });
+                        }}>
+                        Read Biography
+                      </button>
                     </div>
-                    <button
-                      className="mt-4 text-sm text-[#4b2a75] underline hover:text-[#371f5c] px-3 py-1 rounded transition-colors duration-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate("/counselor-profile", {
-                          state: { therapist },
-                        });
-                      }}>
-                      Read Biography
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="mt-8 flex justify-between">
                 <button

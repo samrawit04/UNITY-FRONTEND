@@ -13,7 +13,6 @@ import {
   startOfToday,
   addHours,
   parse,
-  formatISO,
 } from "date-fns";
 
 interface TimeSlot {
