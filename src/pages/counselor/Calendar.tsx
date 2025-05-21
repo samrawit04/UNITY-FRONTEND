@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import Navbar from "./component/Navbar";
 import {
   format,
   startOfMonth,
@@ -172,50 +173,52 @@ export default function Calendar() {
   };
 
   return (
-    <div className="flex gap-8 p-8">
-      <div className="w-96 rounded-lg bg-white shadow">
-        <div className="flex items-center justify-between border-b px-6 py-2">
-          <span className="text-lg font-semibold">
-            {format(currentMonth, "MMMM yyyy")}
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() =>
-                setCurrentMonth(
-                  (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1),
-                )
-              }
-              className="p-1 hover:bg-gray-100 rounded">
-              ←
-            </button>
-            <button
-              onClick={() =>
-                setCurrentMonth(
-                  (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1),
-                )
-              }
-              className="p-1 hover:bg-gray-100 rounded">
-              →
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold">
-          {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
-            <div key={day} className="bg-white py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-px bg-gray-200">
-          {days.map((day) => {
-            const hasSlots = getDateSchedule(day).length > 0;
-            const isPastDate = isBefore(day, today);
-            return (
+    <>
+      <Navbar/>
+      <div className="flex gap-8 p-8">
+        <div className="w-96 rounded-lg bg-white shadow">
+          <div className="flex items-center justify-between border-b px-6 py-2">
+            <span className="text-lg font-semibold">
+              {format(currentMonth, "MMMM yyyy")}
+            </span>
+            <div className="flex gap-2">
               <button
-                key={day.toString()}
-                onClick={() => !isPastDate && setSelectedDate(day)}
-                disabled={isPastDate}
-                className={` 
+                onClick={() =>
+                  setCurrentMonth(
+                    (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1),
+                  )
+                }
+                className="p-1 hover:bg-gray-100 rounded">
+                ←
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentMonth(
+                    (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1),
+                  )
+                }
+                className="p-1 hover:bg-gray-100 rounded">
+                →
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold">
+            {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
+              <div key={day} className="bg-white py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-gray-200">
+            {days.map((day) => {
+              const hasSlots = getDateSchedule(day).length > 0;
+              const isPastDate = isBefore(day, today);
+              return (
+                <button
+                  key={day.toString()}
+                  onClick={() => !isPastDate && setSelectedDate(day)}
+                  disabled={isPastDate}
+                  className={` 
                    bg-white py-4 text-center relative 
                    ${!isSameMonth(day, currentMonth) && "text-gray-400"} 
                    ${isToday(day) && "font-bold text-blue-600"} 
@@ -230,77 +233,77 @@ export default function Calendar() {
                        : "hover:bg-gray-50"
                    }
                  `}>
-                {format(day, "d")}
-                {hasSlots && !isPastDate && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {selectedDate && (
-        <div className="flex-1 rounded-lg bg-white p-6 shadow">
-          <h2 className="text-lg font-semibold mb-6">
-            {format(selectedDate, "EEE MMM dd yyyy")} GMT+0300 (East Africa
-            Time)
-          </h2>
-
-          <div className="space-y-6">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium mb-4">Add New Time Slot</h3>
-              <div className="flex gap-4 items-end">
-                <div>
-                  <label className="block text-sm mb-1">Start Time</label>
-                  <input
-                    type="time"
-                    value={newSlot.start}
-                    onChange={(e) => handleStartTimeChange(e.target.value)}
-                    className="border rounded px-2 py-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">End Time</label>
-                  <input
-                    type="time"
-                    value={newSlot.end}
-                    readOnly
-                    className="border rounded px-2 py-1 bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-                <button
-                  onClick={handleAddSlot}
-                  className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">
-                  Add Slot
+                  {format(day, "d")}
+                  {hasSlots && !isPastDate && (
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                    </div>
+                  )}
                 </button>
-              </div>
-            </div>
+              );
+            })}
+          </div>
+        </div>
+        {selectedDate && (
+          <div className="flex-1 rounded-lg bg-white p-6 shadow">
+            <h2 className="text-lg font-semibold mb-6">
+              {format(selectedDate, "EEE MMM dd yyyy")} GMT+0300 (East Africa
+              Time)
+            </h2>
 
-            <div>
-              <h3 className="font-medium mb-4">Available Time Slots</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {getDateSchedule(selectedDate).map((slot, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-blue-50 rounded-md px-4 py-2">
-                    <span>
-                      {slot.start} - {slot.end}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveSlot(selectedDate, slot)}
-                      className="text-red-600 hover:text-red-700">
-                      ×
-                    </button>
+            <div className="space-y-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium mb-4">Add New Time Slot</h3>
+                <div className="flex gap-4 items-end">
+                  <div>
+                    <label className="block text-sm mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={newSlot.start}
+                      onChange={(e) => handleStartTimeChange(e.target.value)}
+                      className="border rounded px-2 py-1"
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="block text-sm mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={newSlot.end}
+                      readOnly
+                      className="border rounded px-2 py-1 bg-gray-100 cursor-not-allowed"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddSlot}
+                    className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">
+                    Add Slot
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium mb-4">Available Time Slots</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {getDateSchedule(selectedDate).map((slot, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between bg-blue-50 rounded-md px-4 py-2">
+                      <span>
+                        {slot.start} - {slot.end}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveSlot(selectedDate, slot)}
+                        className="text-red-600 hover:text-red-700">
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
