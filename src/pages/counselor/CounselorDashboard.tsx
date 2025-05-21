@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
@@ -276,16 +276,18 @@ const userId = decoded.id; // ✅ Now this works!
       <nav className="bg-white shadow flex items-center justify-between px-8 py-4 sticky top-0 z-50">
         {/* Left side - logo */}
         <div className="flex items-center gap-6">
-          <div className="w-12 h-12 bg-purple-700 rounded-full flex items-center justify-center text-white font-bold text-2xl select-none cursor-default">
-            C
-          </div>
+          <Link to="/" className="flex place-items-end ml-10">
+                    <div className=" rounded-full p-1 ">
+                      <img src="/src/asset/logo.png" alt="Unity Logo" className="h-12 w-max" />
+                    </div>
+                  </Link>
         </div>
 
         {/* Right side - nav items */}
         <ul className="flex items-center gap-8 text-gray-700 font-medium">
           <li
             className="cursor-pointer hover:text-purple-700 transition"
-            onClick={() => alert("Your Posts clicked")}
+            onClick={() => navigate("/counselor-articles")}
             title="Your Posts"
           >
             Your Posts

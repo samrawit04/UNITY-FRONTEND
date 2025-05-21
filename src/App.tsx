@@ -51,7 +51,7 @@ const App = () => (
             <Route path="/reset-success" element={<ResetSuccess />} />
             <Route path="/reset-form" element={<ResetPasswordForm />} />
             <Route path="/verify-email" element={<EmailVerification />} />{" "}
-            <Route path="/client-profile" element={<ClientCompleteProfile />} />
+            {/* <Route path="/client-profile" element={<ClientCompleteProfile />} />  */}
             <Route
               path="/client-profile-next"
               element={<ClientProfileNext />}
@@ -62,13 +62,13 @@ const App = () => (
               path="/counselor-dashboard"
               element={<CounselorDashboard />}
             />
-            <Route path="/counselor-profile" element={<CounselorProfile />} />
-            <Route path="/availability" element={<CounselorAvailability />} />
-            <Route path="/counselor-schedule" element={<CounselorSchedule />} />
-            <Route path="/counselor-feedback" element={<CounselorFeedback />} />
-            <Route path="/final-session-set" element={<FinalSessionSet />} />
+            {/* <Route path="/counselor-profile" element={<CounselorProfile />} />  */}
+            {/* <Route path="/availability" element={<CounselorAvailability />} />  */}
+            {/* <Route path="/counselor-schedule" element={<CounselorSchedule />} />  */}
+            {/* <Route path="/counselor-feedback" element={<CounselorFeedback />} /> */}
+            {/* <Route path="/final-session-set" element={<FinalSessionSet />} />  */}
             <Route path="/counselor-articles" element={<CounselorArticles />} />
-            <Route path="/book-session" element={<BookingSession />} />
+            {/* <Route path="/book-session" element={<BookingSession />} /> */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
