@@ -1,6 +1,4 @@
-import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { IconArrowLeft } from "@tabler/icons-react";
 import Navbar from "@/components/Navbar";
 
 const CounselorProfile = () => {
