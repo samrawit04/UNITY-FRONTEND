@@ -42,7 +42,10 @@ const App = () => (
             <Route path="/services" element={<Index />} />
             <Route path="/select-role" element={<Register />} />
             <Route path="/signup" element={<UserRegister />} />
-            <Route path="/counselor/complete-profile" element={<CounselorRegister />} />
+            <Route
+              path="/counselor/complete-profile"
+              element={<CounselorRegister />}
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-success" element={<ResetSuccess />} />
@@ -54,7 +57,7 @@ const App = () => (
               element={<ClientProfileNext />}
             />
             {/* <Route path="/client-dashboard" element={<ClientDashboard />} /> */}
-            <Route path="/counselor-posts" element={<CounselorPosts />} /> 
+            <Route path="/counselor-posts" element={<CounselorPosts />} />
             <Route
               path="/counselor-dashboard"
               element={<CounselorDashboard />}
@@ -62,10 +65,10 @@ const App = () => (
             {/* <Route path="/counselor-profile" element={<CounselorProfile />} />  */}
             {/* <Route path="/availability" element={<CounselorAvailability />} />  */}
             {/* <Route path="/counselor-schedule" element={<CounselorSchedule />} />  */}
-             {/* <Route path="/counselor-feedback" element={<CounselorFeedback />} /> */}
-             {/* <Route path="/final-session-set" element={<FinalSessionSet />} />  */}
+            {/* <Route path="/counselor-feedback" element={<CounselorFeedback />} /> */}
+            {/* <Route path="/final-session-set" element={<FinalSessionSet />} />  */}
             <Route path="/counselor-articles" element={<CounselorArticles />} />
-           {/* <Route path="/book-session" element={<BookingSession />} /> */}
+            {/* <Route path="/book-session" element={<BookingSession />} /> */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
