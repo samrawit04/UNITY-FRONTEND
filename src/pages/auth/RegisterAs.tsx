@@ -6,7 +6,7 @@ const Register = () => {
 
   const handleRoleSelect = (role: "client" | "counselor") => {
     sessionStorage.setItem("selectedRole", role);
-    navigate(`/register/user`);
+    navigate(`/signup`);
   };
 
   return (
