@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { IconPlus } from '@tabler/icons-react';
+import Navbar from './component/Navbar';
 
 const CounselorArticles = () => {
   const [articles, setArticles] = useState([]);
@@ -65,19 +66,7 @@ const CounselorArticles = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-      <nav className="bg-white shadow-sm py-4 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <img src="/src/asset/logo.png" alt="Unity Logo" className="h-8 w-auto" />
-          </Link>
-          <div className="flex items-center space-x-6">
-            <Link to="/" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">Home</Link>
-            <Link to="/clients" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">Clients</Link>
-            <Link to="/counselor-posts" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">Posts</Link>
-            <Link to="/logout" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">Logout</Link>
-          </div>
-        </div>
-      </nav>
+     <Navbar />
 
       {/* Main */}
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
