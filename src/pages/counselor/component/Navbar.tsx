@@ -1,36 +1,35 @@
-import axios from "axios";
-import { jwtDecode } from "jwt-decode";
-import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
+import  { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
-  interface MyJwtPayload {
-    id: string;
-    email: string;
-    [key: string]: any;
-  }
-
-  const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [messageTo, setMessageTo] = useState("all");
-  const [messageText, setMessageText] = useState("");
-
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const token = localStorage.getItem("token");
-
-      if (!token) return;
-
-      try {
-        const decoded = jwtDecode<MyJwtPayload>(token);
-        const userId = decoded.id; // ✅ Now this works!
-
-        const res = await axios.get(
-          `http://localhost:3000/counselors/profile/${userId}`,
-          {
+    interface MyJwtPayload {
+      id: string;
+      email: string;
+      [key: string]: any;
+    }
+    
+    
+      const navigate = useNavigate();
+      const [showNotifications, setShowNotifications] = useState(false);
+      const [messageTo, setMessageTo] = useState("all");
+      const [messageText, setMessageText] = useState("");
+    const [loading, setLoading] = useState(true);
+    
+    const [profile, setProfile] = useState(null);
+    useEffect(() => {
+      const fetchProfile = async () => {
+        const token = localStorage.getItem("token");
+        
+    
+        if (!token) return;
+    
+        try {
+         const decoded = jwtDecode<MyJwtPayload>(token);
+    const userId = decoded.id; // ✅ Now this works!
+    
+          const res = await axios.get(`http://localhost:3000/counselors/profile/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           },
         );
