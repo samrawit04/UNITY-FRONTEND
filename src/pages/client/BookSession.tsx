@@ -13,6 +13,8 @@ import {
   isBefore,
   startOfToday,
   parse,
+  subMonths,
+  addMonths,
 } from "date-fns";
 interface TimeSlot {
   id?: string;
@@ -23,6 +25,13 @@ interface TimeSlot {
 interface DaySchedule {
   date: string;
   slots: TimeSlot[];
+}
+
+interface Therapist {
+  id: string;
+  firstName: string;
+  lastName: string;
+  image: string;
 }
 
 const API_URL = "http://localhost:3000";
@@ -36,7 +45,6 @@ const BookSession = () => {
 
   const params = useParams<{ yearMonth?: string }>();
 
-  // Parse yearMonth param or default to current date
   const initialMonth = params.yearMonth
     ? parse(params.yearMonth, "yyyy-MM", new Date())
     : new Date();
@@ -47,6 +55,8 @@ const BookSession = () => {
   );
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const today = startOfToday();
 
@@ -54,9 +64,21 @@ const BookSession = () => {
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+  useEffect(() => {
+    axios
+      .get("http://localhost:3000/counselors")
+      .then((res) => {
+        setTherapists(res.data);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch therapists:", err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const fetchSchedule = async () => {
+      if (!selectedTherapist?.id) return;
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
@@ -65,7 +87,7 @@ const BookSession = () => {
           params: {
             startDate,
             endDate,
-            counselorId,
+            counselorId: selectedTherapist.id,
           },
         });
 
@@ -94,7 +116,7 @@ const BookSession = () => {
     };
 
     fetchSchedule();
-  }, [currentMonth]);
+  }, [selectedTherapist, currentMonth]);
 
   const getDateSchedule = (date: Date): TimeSlot[] => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -110,22 +132,12 @@ const BookSession = () => {
 
   // Navigate to prev month page
   const handlePrevMonth = () => {
-    const prevMonth = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() - 1,
-    );
-    const url = `/booking/${format(prevMonth, "yyyy-MM")}`;
-    navigate(url);
+    setCurrentMonth((prev) => subMonths(prev, 1));
   };
 
   // Navigate to next month page
   const handleNextMonth = () => {
-    const nextMonth = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + 1,
-    );
-    const url = `/booking/${format(nextMonth, "yyyy-MM")}`;
-    navigate(url);
+    setCurrentMonth((prev) => addMonths(prev, 1));
   };
 
   const handleBookSlot = async () => {
@@ -135,8 +147,6 @@ const BookSession = () => {
       await axios.post(`${API_URL}/api/bookings`, {
         scheduleId: selectedSlot.id,
         counselorId,
-        clientName: "lidiya",
-        clientEmail: "lidiya@gmail.com",
       });
 
       alert("Booking confirmed!");
@@ -167,27 +177,6 @@ const BookSession = () => {
     { id: 3, title: "Summary" },
     { id: 4, title: "Payment" },
     { id: 5, title: "Confirmation" }, // Added a title for the confirmation step
-  ];
-
-  const therapists = [
-    {
-      id: 1,
-      name: "Dr. Sarah Johnson",
-      image:
-        "https://plus.unsplash.com/premium_photo-1670071482460-5c08776521fe?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
-    {
-      id: 2,
-      name: "Dr. Michael Chen",
-      image:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
-    {
-      id: 3,
-      name: "Dr. Emily Williams",
-      image:
-        "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=1000&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHVzZXJ8ZW58MHx8MHx8fDA%3D",
-    },
   ];
 
   return (
@@ -262,45 +251,77 @@ const BookSession = () => {
                 Choose Your Therapist
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {therapists.map((therapist) => (
-                  <div
-                    key={therapist.id}
-                    onClick={() => setSelectedTherapist(therapist)}
-                    className={`border rounded-lg p-6 cursor-pointer transition-colors ${
-                      selectedTherapist?.id === therapist.id
-                        ? "border-[#4b2a75] bg-[#f5f0ff]"
-                        : "hover:border-[#4b2a75]"
-                    }`}>
-                    <div>
-                      <img
-                        src={therapist.image}
-                        alt={therapist.name}
-                        className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-                      />
+                {therapists.map((therapist) => {
+                  const firstLetter =
+                    therapist.firstName?.[0]?.toUpperCase() ||
+                    therapist.lastName?.[0]?.toUpperCase() ||
+                    "?";
+
+                  return (
+                    <div
+                      key={therapist.id}
+                      onClick={() =>
+                        setSelectedTherapist({
+                          id: therapist.id,
+                          fullName: `${therapist.firstName} ${therapist.lastName}`,
+                          image: therapist.image
+                            ? `http://localhost:3000/uploads/profile-pictures/${therapist.image}`
+                            : null,
+                          firstLetter:
+                            therapist.firstName?.[0]?.toUpperCase() ||
+                            therapist.lastName?.[0]?.toUpperCase() ||
+                            "?",
+                        })
+                      }
+                      className={`border rounded-lg p-6 cursor-pointer transition-colors ${
+                        selectedTherapist?.id === therapist.id
+                          ? "border-[#4b2a75] bg-[#f5f0ff]"
+                          : "hover:border-[#4b2a75]"
+                      }`}>
+                      <div className="flex justify-center mb-4">
+                        {therapist.image ? (
+                          <img
+                            src={`http://localhost:3000/uploads/profile-pictures/${therapist.image}`}
+                            alt={`${therapist.firstName} ${therapist.lastName}`}
+                            className="w-24 h-24 rounded-full mx-auto object-cover"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-[#4b2a75] flex items-center justify-center mx-auto">
+                            <span className="text-white text-4xl font-bold">
+                              {firstLetter}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <h3 className="text-lg font-semibold text-center mb-2">
-                        {therapist.name}
+                        {therapist.firstName} {therapist.lastName}
                       </h3>
+                      <button
+                        className="mt-4 text-sm text-[#4b2a75] underline hover:text-[#371f5c] px-3 py-1 rounded transition-colors duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/counselor-profile", {
+                            state: {
+                              therapist: {
+                                id: therapist.id,
+                                fullName: `${therapist.firstName} ${therapist.lastName}`,
+                                profilePicture: therapist.image,
+                                firstLetter:
+                                  therapist.firstName?.[0]?.toUpperCase() ||
+                                  therapist.lastName?.[0]?.toUpperCase() ||
+                                  "?",
+                              },
+                            },
+                          });
+                        }}>
+                        Read Biography
+                      </button>
                     </div>
-                    <button
-                      className="mt-4 text-sm text-[#4b2a75] underline hover:text-[#371f5c] px-3 py-1 rounded transition-colors duration-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate("/counselor-profile", {
-                          state: { therapist },
-                        });
-                      }}>
-                      Read Biography
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
-                  disabled={currentStep === 1}>
-                  Back
-                </button>
+
+              <div className="mt-8 flex justify-end">
                 <button
                   onClick={() =>
                     selectedTherapist && setCurrentStep(currentStep + 1)
@@ -313,146 +334,142 @@ const BookSession = () => {
             </div>
           )}
 
-          {/* Placeholder for other steps */}
           {currentStep === 2 && (
             <div>
               <h2 className="text-2xl font-bold text-[#4b2a75] mb-6">
                 Select Available Time Slot
               </h2>
+
+              {/* Therapist Info Card */}
               <div className="mb-8">
                 <h3 className="text-lg font-medium text-gray-700 mb-4">
                   Selected Therapist
                 </h3>
+                {/* Selected Therapist */}
                 <div className="flex items-center space-x-4 p-4 bg-[#f5f0ff] rounded-lg">
-                  <img
-                    src={selectedTherapist?.image}
-                    alt={selectedTherapist?.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
+                  {selectedTherapist?.image ? (
+                    <img
+                      src={selectedTherapist.image}
+                      alt={selectedTherapist.fullName}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-[#4b2a75] flex items-center justify-center text-white text-xl font-bold">
+                      {selectedTherapist?.firstLetter || "?"}
+                    </div>
+                  )}
                   <div>
                     <h4 className="font-medium text-[#4b2a75]">
-                      {selectedTherapist?.name}
+                      {selectedTherapist?.fullName}
                     </h4>
                     <p className="text-gray-600">
                       {selectedTherapist?.specialization}
                     </p>
-                    <div className="flex gap-8 p-8">
-                      {/* Calendar Panel */}
-                      <div className="w-96 rounded-lg bg-white shadow">
-                        <div className="flex items-center justify-between border-b px-6 py-2">
-                          <span className="text-lg font-semibold">
-                            {format(currentMonth, "MMMM yyyy")}
-                          </span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={handlePrevMonth}
-                              className="p-1 hover:bg-gray-100 rounded">
-                              ←
-                            </button>
-                            <button
-                              onClick={handleNextMonth}
-                              className="p-1 hover:bg-gray-100 rounded">
-                              →
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold">
-                          {[
-                            "MON",
-                            "TUE",
-                            "WED",
-                            "THU",
-                            "FRI",
-                            "SAT",
-                            "SUN",
-                          ].map((day) => (
-                            <div key={day} className="bg-white py-2">
-                              {day}
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-7 gap-px bg-gray-200">
-                          {days.map((day) => {
-                            const dateStr = format(day, "yyyy-MM-dd");
-                            const hasSlots = schedule.some(
-                              (s) => s.date === dateStr,
-                            );
-                            const isPastDate = isBefore(day, today);
-                            const isDisabled = isPastDate || !hasSlots;
-
-                            return (
-                              <button
-                                key={day.toString()}
-                                onClick={() =>
-                                  !isDisabled && handleDateClick(day)
-                                }
-                                disabled={isDisabled}
-                                className={`bg-white py-4 text-center relative
-                                 ${
-                                   !isSameMonth(day, currentMonth) &&
-                                   "text-gray-400"
-                                 }
-                                 ${isToday(day) && "font-bold text-blue-600"}
-                                 ${
-                                   selectedDate && isSameDay(day, selectedDate)
-                                     ? "bg-blue-100"
-                                     : ""
-                                 }
-                                 ${
-                                   isDisabled
-                                     ? "cursor-not-allowed bg-gray-100 text-gray-400"
-                                     : "hover:bg-gray-50"
-                                 }
-                               `}>
-                                {format(day, "d")}
-                                {hasSlots && !isDisabled && (
-                                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Booking Panel */}
-                      {selectedDate && (
-                        <div className="flex-1 rounded-lg bg-white p-6 shadow">
-                          <h2 className="text-lg font-semibold mb-6">
-                            {format(selectedDate, "EEE MMM dd yyyy")} GMT+0300
-                            (East Africa Time)
-                          </h2>
-
-                          <div>
-                            <h3 className="font-medium mb-4">
-                              Available Time Slots
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                              {getDateSchedule(selectedDate).map((slot) => (
-                                <button
-                                  key={slot.id}
-                                  onClick={() => setSelectedSlot(slot)}
-                                  className={`flex items-center justify-between px-4 py-2 rounded-md border 
-                                   ${
-                                     selectedSlot?.id === slot.id
-                                       ? "bg-blue-600 text-white"
-                                       : "bg-blue-50 hover:bg-blue-100"
-                                   }`}>
-                                  {slot.start} - {slot.end}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* Calendar and Booking Panel */}
+              <div className="flex gap-8 p-8">
+                {/* Calendar Panel */}
+                <div className="w-96 rounded-lg bg-white shadow">
+                  <div className="flex items-center justify-between border-b px-6 py-2">
+                    <span className="text-lg font-semibold">
+                      {format(currentMonth, "MMMM yyyy")}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handlePrevMonth}
+                        className="p-1 hover:bg-gray-100 rounded">
+                        ←
+                      </button>
+                      <button
+                        onClick={handleNextMonth}
+                        className="p-1 hover:bg-gray-100 rounded">
+                        →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold">
+                    {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map(
+                      (day) => (
+                        <div key={day} className="bg-white py-2">
+                          {day}
+                        </div>
+                      ),
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-px bg-gray-200">
+                    {days.map((day) => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const hasSlots = schedule.some((s) => s.date === dateStr);
+                      const isPastDate = isBefore(day, today);
+                      const isDisabled = isPastDate || !hasSlots;
+
+                      return (
+                        <button
+                          key={day.toString()}
+                          onClick={() => !isDisabled && handleDateClick(day)}
+                          disabled={isDisabled}
+                          className={`bg-white py-4 text-center relative
+                  ${!isSameMonth(day, currentMonth) && "text-gray-400"}
+                  ${isToday(day) && "font-bold text-blue-600"}
+                  ${
+                    selectedDate && isSameDay(day, selectedDate)
+                      ? "bg-blue-100"
+                      : ""
+                  }
+                  ${
+                    isDisabled
+                      ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                      : "hover:bg-gray-50"
+                  }
+                `}>
+                          {format(day, "d")}
+                          {hasSlots && !isDisabled && (
+                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Booking Panel */}
+                {selectedDate && (
+                  <div className="flex-1 rounded-lg bg-white p-6 shadow">
+                    <h2 className="text-lg font-semibold mb-6">
+                      {format(selectedDate, "EEE MMM dd yyyy")} GMT+0300 (East
+                      Africa Time)
+                    </h2>
+
+                    <div>
+                      <h3 className="font-medium mb-4">Available Time Slots</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {getDateSchedule(selectedDate).map((slot) => (
+                          <button
+                            key={slot.id}
+                            onClick={() => setSelectedSlot(slot)}
+                            className={`flex items-center justify-between px-4 py-2 rounded-md border 
+                    ${
+                      selectedSlot?.id === slot.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-blue-50 hover:bg-blue-100"
+                    }`}>
+                            {slot.start} - {slot.end}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation Buttons */}
               <div className="mt-8 flex justify-between">
                 <button
                   onClick={() => setCurrentStep(currentStep - 1)}
@@ -460,9 +477,14 @@ const BookSession = () => {
                   Back
                 </button>
                 <button
-                  onClick={() => setCurrentStep(currentStep + 1)}
-                  className={`bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors ${
-                    !selectedSlot ? "opacity-50 cursor-not-allowed" : ""
+                  onClick={() =>
+                    selectedSlot && setCurrentStep(currentStep + 1)
+                  }
+                  disabled={!selectedSlot}
+                  className={`bg-[#4b2a75] text-white px-6 py-2 rounded-md transition-colors ${
+                    !selectedSlot
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-[#3a2057]"
                   }`}>
                   Next
                 </button>
@@ -470,68 +492,76 @@ const BookSession = () => {
             </div>
           )}
 
-          {currentStep === 3 && (
-            <div>
-              <h2 className="text-2xl font-bold text-[#4b2a75] mb-6">
-                Booking Summary
-              </h2>
-              <div className="bg-[#f5f0ff] rounded-lg p-6 mb-8">
-                <div className="flex items-center space-x-4 mb-6">
-                  <img
-                    src={selectedTherapist?.image}
-                    alt={selectedTherapist?.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                  <div>
-                    <h4 className="font-medium text-[#4b2a75]">
-                      {selectedTherapist?.name}
-                    </h4>
-                    <p className="text-gray-600">
-                      {selectedTherapist?.specialization}
-                    </p>
+          {currentStep === 3 &&
+            selectedTherapist &&
+            selectedDate &&
+            selectedSlot && (
+              <div>
+                <h2 className="text-2xl font-bold text-[#4b2a75] mb-6">
+                  Booking Summary
+                </h2>
+                <div className="bg-[#f5f0ff] rounded-lg p-6 mb-8">
+                  <div className="flex items-center space-x-4 mb-6">
+                    {selectedTherapist?.image ? (
+                      <img
+                        src={selectedTherapist.image}
+                        alt={selectedTherapist.fullName}
+                        className="w-16 h-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-[#4b2a75] flex items-center justify-center text-white text-xl font-bold">
+                        {selectedTherapist?.firstLetter || "?"}
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-medium text-[#4b2a75]">
+                        {selectedTherapist?.fullName}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
+                      <span className="text-gray-600">Date</span>
+                      <span className="font-medium">
+                        {format(selectedDate, "MMMM d, yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
+                      <span className="text-gray-600">Time</span>
+                      <span className="font-medium">
+                        {selectedSlot.start} - {selectedSlot.end}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
+                      <span className="text-gray-600">Duration</span>
+                      <span className="font-medium">1 hour</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
+                      <span className="text-gray-600">Session Type</span>
+                      <span className="font-medium">Online via Zoom</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-gray-600">Session Fee</span>
+                      <span className="font-medium">10$</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
-                    <span className="text-gray-600">Date</span>
-                    <span className="font-medium">April 17, 2024</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
-                    <span className="text-gray-600">Time</span>
-                    <span className="font-medium">{selectedTime}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
-                    <span className="text-gray-600">Duration</span>
-                    <span className="font-medium">1 hour</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
-                    <span className="text-gray-600">Session Type</span>
-                    <span className="font-medium">Online via Zoom</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-gray-600">Session Fee</span>
-                    <span className="font-medium text-[#4b2a75]">
-                      {selectedTherapist?.rate}
-                    </span>
-                  </div>
+                <div className="mt-8 flex justify-between">
+                  <button
+                    onClick={() => setCurrentStep(currentStep - 1)}
+                    className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep(currentStep + 1)}
+                    className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
+                    Proceed to Payment
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
-                  Back
-                </button>
-                <button
-                  onClick={() => setCurrentStep(currentStep + 1)}
-                  className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
-                  Proceed to Payment
-                </button>
-              </div>
-            </div>
-          )}
+            )}
 
           {currentStep === 4 && (
             <div>

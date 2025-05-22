@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 import {jwtDecode} from "jwt-decode";
 import axios from "axios";
 
-// Define the shape of your JWT payload
 type MyJwtPayload = { id: string; email: string; [key: string]: any };
 
 const ProfileForm = () => {
   const navigate = useNavigate();
 
-  // State to hold userId extracted from token
+
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -94,12 +93,12 @@ const ProfileForm = () => {
     }
   };
 
-  // Trigger hidden file input click
+
   const triggerFileInput = (ref: React.RefObject<HTMLInputElement>) => {
     if (ref.current) ref.current.click();
   };
 
-  // Label for bank/mobile field based on payment method
+
   const getBankFieldLabel = () => {
     switch (form.payment) {
       case "Bank Transfer":
