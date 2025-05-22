@@ -10,7 +10,6 @@ const Navbar = () => {
       [key: string]: any;
     }
     
-    
       const navigate = useNavigate();
       const [showNotifications, setShowNotifications] = useState(false);
       const [messageTo, setMessageTo] = useState("all");
