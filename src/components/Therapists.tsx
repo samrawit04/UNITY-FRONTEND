@@ -10,6 +10,8 @@ const Therapists = () => {
       try {
         const res = await fetch("http://localhost:3000/counselors");
         const data = await res.json();
+        console.log("Counselors fetched:", data);
+
         setCounselors(data);
       } catch (err) {
         console.error("Failed to fetch counselors", err);
@@ -37,31 +39,36 @@ const Therapists = () => {
       {/* Scrollable Row */}
       <div className="w-full max-w-6xl overflow-x-auto no-scrollbar">
         <div className="flex gap-20 px-4 mt-10">
-          {counselors.map((counselor) => {
-            const fullName = `${counselor.user?.firstName || ""} ${counselor.user?.lastName || ""}`.trim();
-            return (
-              <div
-                key={counselor.id}
-                className="flex flex-col items-center flex-shrink-0 min-w-[160px]"
-              >
-                <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-4 shadow-md">
-                  <Avatar className="w-full h-full rounded-none">
-                    <AvatarImage
-                      src={`http://localhost:3000/uploads/profile-pictures/${counselor.profilePicture}`}
-                      alt={`${fullName}'s profile`}
-                      className="object-cover w-full h-full rounded-none"
-                    />
-                    <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none">
-                      <User className="w-16 h-16 text-gray-500" />
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <p className="text-md md:text-lg font-semibold text-gray-800 text-center">
-                  {fullName || "Therapist"}
-                </p>
-              </div>
-            );
-          })}
+         {counselors.map((counselor) => {
+  const fullName = `${counselor.firstName || ""} ${counselor.lastName || ""}`.trim();
+  return (
+    <div
+      key={counselor.id}
+      className="flex flex-col items-center flex-shrink-0 min-w-[160px]"
+    >
+      <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-4 shadow-md">
+        <Avatar className="w-full h-full rounded-none">
+          <AvatarImage
+            src={
+              counselor.image
+                ? `http://localhost:3000/uploads/profile-pictures/${counselor.image}`
+                : undefined
+            }
+            alt={`${fullName}'s profile`}
+            className="object-cover w-full h-full rounded-none"
+          />
+          <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none text-xl font-semibold text-purple-700">
+            {counselor.firstName?.[0] || "?"}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+      <p className="text-md md:text-lg font-semibold text-gray-800 text-center">
+        {fullName || "Therapist"}
+      </p>
+    </div>
+  );
+})}
+
         </div>
       </div>
 
@@ -76,6 +83,7 @@ const Therapists = () => {
         }
       `}</style>
     </div>
+    // <div>hi</div>
   );
 };
 
