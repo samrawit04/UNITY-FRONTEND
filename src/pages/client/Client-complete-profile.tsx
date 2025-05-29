@@ -8,15 +8,13 @@ type MyJwtPayload = { id: string; email: string; [key: string]: any };
 const ProfileForm = () => {
   const navigate = useNavigate();
 
-
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
 
   // Form state
   const [form, setForm] = useState({
     phone: "",
-    address: "",
+    addres: "",
     gender: "",
     maritalStatus: "",
     profilePicture: null as File | null,
@@ -24,32 +22,39 @@ const ProfileForm = () => {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const certInputRef = useRef<HTMLInputElement>(null);
-  
-  // Decode token on mount to get userId 
-   useEffect(() => {
+
+  // Decode token on mount to get userId and fetch profile
+  useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
+
       try {
         const decoded = jwtDecode<MyJwtPayload>(token);
         const id = decoded.id;
         setUserId(id);
 
-        const res = await axios.get(`http://localhost:3000/clients/complete-profile/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get(
+          `http://localhost:3000/clients/profile/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const data = res.data;
 
-        setForm((prev) => ({
-          ...prev,
-          phone: data.phoneNumber || "",
-          address: data.addres || "",
-          gender: data.gender || "",
-          maritalStatus: data.preferredPaymentMethod || "",
-          existingProfilePicture: data.profilePicture || ""
-        }));
+       setForm((prev) => ({
+  ...prev,
+  phone: data.phoneNumber || "",
+  addres: data.addres || data.addres || "",
+  gender:
+  data.gender && typeof data.gender === "string"
+    ? data.gender.charAt(0).toUpperCase() + data.gender.slice(1).toLowerCase()
+    : "",
+  maritalStatus: data.maritalStatus || "", // do not fallback to unrelated field
+  existingProfilePicture: data.profilePicture || "",
+}));
+
       } catch (err) {
         console.error("Failed to fetch profile", err);
       } finally {
@@ -58,31 +63,26 @@ const ProfileForm = () => {
     };
     fetchProfile();
   }, []);
-    
 
   // Handle input changes
- const handleChange = (
+  const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, files } = e.target as any;
 
     if (name === "profilePicture" && files?.[0]) {
       setForm((prev) => ({ ...prev, profilePicture: files[0] }));
-    }  else {
+    } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-
-  const triggerFileInput = (ref: React.RefObject<HTMLInputElement>) => {
-    if (ref.current) ref.current.click();
+  const triggerFileInput = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
-
-
-
   // Submit handler: build FormData and send PATCH request
- const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!userId) {
@@ -93,15 +93,13 @@ const ProfileForm = () => {
     const formData = new FormData();
     formData.append("userId", userId);
     formData.append("phoneNumber", form.phone);
-    formData.append("addres", form.address);
+    formData.append("addres", form.addres);
     formData.append("gender", form.gender);
     formData.append("maritalStatus", form.maritalStatus);
-
 
     if (form.profilePicture) {
       formData.append("profilePicture", form.profilePicture);
     }
-
 
     try {
       const res = await fetch("http://localhost:3000/clients/complete-profile", {
@@ -123,35 +121,46 @@ const ProfileForm = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-purple-100 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white bg-opacity-40 rounded-xl shadow-lg p-8">
-
         {/* Profile Picture Section */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
-             {form.profilePicture ? (
-  <img
-    src={URL.createObjectURL(form.profilePicture)}
-    alt="Profile"
-    className="w-full h-full object-cover"
-  />
-) : form.existingProfilePicture ? (
-  <img
-    src={`http://localhost:3000/uploads/profile-pictures/${form.existingProfilePicture}`}
-    alt="Profile"
-    className="w-full h-full object-cover"
-  />
-) : (
-  <svg>...</svg>
-)}
-
+              {form.profilePicture ? (
+                <img
+                  src={URL.createObjectURL(form.profilePicture)}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : form.existingProfilePicture ? (
+                <img
+                  src={`http://localhost:3000/uploads/profile-pictures/${form.existingProfilePicture}`}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <svg
+                  className="w-full h-full text-gray-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
+              )}
             </div>
             <button
               type="button"
-              onClick={() => triggerFileInput(fileInputRef)}
+              onClick={triggerFileInput}
               className="absolute bottom-0 right-0 bg-purple-400 rounded-full p-2 border-4 border-white hover:bg-purple-500 transition-colors"
               aria-label="Upload profile picture"
             >
@@ -179,7 +188,7 @@ const ProfileForm = () => {
             />
           </div>
           <h2 className="mt-4 text-2xl font-semibold text-purple-800">
-            Hello, Edit Your Profile! 
+            Hello, Edit Your Profile!
           </h2>
         </div>
 
@@ -197,22 +206,17 @@ const ProfileForm = () => {
 
             <input
               type="text"
-              name="address"
-              placeholder="Enter Your Address"
-              value={form.address}
+              name="addres"
+              placeholder="Enter Your addres"
+              value={form.addres}
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none"
             />
-
-           
           </div>
-
-       
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <select
               name="maritalStatus"
-             
               value={form.maritalStatus}
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none"
@@ -220,13 +224,11 @@ const ProfileForm = () => {
               <option value="">Marital Status</option>
               <option>Single</option>
               <option>Married</option>
-                            <option>Devorced</option>
-                            <option>Widowed</option>
-
-
-             {/* gender */}
+              <option>Divorced</option>
+              <option>Widowed</option>
             </select>
-             <select
+
+            <select
               name="gender"
               value={form.gender}
               onChange={handleChange}
@@ -235,10 +237,7 @@ const ProfileForm = () => {
               <option value="">Gender</option>
               <option>Male</option>
               <option>Female</option>
-             
             </select>
-            
-            
           </div>
 
           {/* Buttons */}

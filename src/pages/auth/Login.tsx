@@ -44,7 +44,9 @@ const Login = () => {
       console.log("Extracted role:", role);
       if (role === "COUNSELOR") {
         navigate("/counselor-dashboard");
-      } else {
+      } else  if (role === "ADMIN") {
+        navigate("/adminPanel");
+      } else{
         navigate("/client-dashboard");
       }
     } catch (err) {

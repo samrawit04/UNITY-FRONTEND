@@ -24,7 +24,8 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
-
+import AdminPanel from './pages/admin/adminPanel';
+import CounselorDetail from './pages/admin/counselor.detail'
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -62,9 +63,14 @@ const App = () => (
             <Route path="/counselor-feedback" element={<CounselorFeedback />} />
             <Route path="/final-session-set" element={<FinalSessionSet />} />
             <Route path="/counselor-articles" element={<CounselorArticles />} />
-            {/* <Route path="/calendar" element={<Calendar />} /> */}
+            <Route path="/calendar" element={<Calendar />} />
             <Route path="/book-session" element={<BookingSession />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/adminPanel" element={<AdminPanel />} />
+            <Route path="/Counselor/:userId" element={<CounselorDetail />} />
+            
+
+
           </Routes>
         </div>
       </BrowserRouter>

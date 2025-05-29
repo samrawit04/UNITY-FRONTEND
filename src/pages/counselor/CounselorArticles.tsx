@@ -1,59 +1,93 @@
 import { useState, useEffect } from 'react';
 import { IconPlus } from '@tabler/icons-react';
 import Navbar from './component/Navbar';
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
+
+type MyJwtPayload = { id: string; email: string; [key: string]: any };
 
 const CounselorArticles = () => {
-  type MyJwtPayload = { id: string; email: string; [key: string]: any };
-
-  const [articles, setArticles] = useState([]);
+  const [articles, setArticles] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [title, settitle] = useState('');
-  const [description, setdescription] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // Decode token on mount to get userId
+  // Decode token and fetch profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setLoadingProfile(false);
+        return;
+      }
 
       try {
         const decoded = jwtDecode<MyJwtPayload>(token);
-        const userId = decoded.id;
-        setUserId(userId);
+        const id = decoded.id;
+        setUserId(id);
+
+        const res = await fetch(`http://localhost:3000/counselors/profile/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const userData = await res.json();
+          setStatus(userData.status);
+          setIsApproved(userData.isApproved);
+        } else {
+          console.error('Failed to fetch profile');
+        }
       } catch (err) {
-        console.error('userID', err);
+        console.error('Error fetching profile:', err);
       } finally {
-        setLoading(false);
+        setLoadingProfile(false);
       }
     };
 
     fetchProfile();
   }, []);
 
-  // Fetch articles
-  const fetchArticles = async () => {
-    try {
-      const res = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
-      const data = await res.json();
-      setArticles(data.reverse());
-    } catch (err) {
-      console.error('Error fetching articles:', err);
-    }
-  };
+  // Normalize approval and status for logic
+  const approved = isApproved === true ;
+  const activeStatus = status?.toLowerCase() === 'active';
+  const canPost = activeStatus && approved;
 
+  // Fetch articles when userId is set
   useEffect(() => {
-    if (userId) {
-      fetchArticles();
-    }
+    const fetchArticles = async () => {
+      if (!userId) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setArticles(data.reverse());
+        } else {
+          console.error('Failed to fetch articles');
+        }
+      } catch (err) {
+        console.error('Error fetching articles:', err);
+      }
+    };
+
+    fetchArticles();
   }, [userId]);
 
-  // Post new article
+  // Handle posting new article
   const handlePost = async () => {
     if (title.trim() === '' || description.trim() === '') return;
+
+    if (!canPost) {
+      alert('Your account is not active or approved. You cannot post articles.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -64,45 +98,55 @@ const CounselorArticles = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: title,
-          description: description,
-        }),
+        body: JSON.stringify({ title, description }),
       });
 
       if (res.ok) {
-        settitle('');
-        setdescription('');
+        setTitle('');
+        setDescription('');
         setShowForm(false);
-        fetchArticles(); // Refresh
+        // Refresh articles
+        const refreshed = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
+        if (refreshed.ok) {
+          const data = await refreshed.json();
+          setArticles(data.reverse());
+        }
       } else {
         const err = await res.json();
         setError(err.message || 'Failed to post article');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError('Error posting article: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  if (loadingProfile) {
+    return (
+      <>
+        <Navbar />
+        <div className="p-8 text-center">Loading profile...</div>
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 relative font-sans">
-      {/* Navbar */}
       <Navbar />
 
-      {/* Main */}
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-[#4b2a75] mb-8 text-center">
-          Your Articles
-        </h1>
+        <h1 className="text-4xl font-bold text-[#4b2a75] mb-8 text-center">Your Articles</h1>
 
-        {/* Article Form */}
-        {showForm && (
+        {!canPost && (
+          <p className="text-center text-red-600 mb-6">
+            Your account is not active or approved. You cannot post articles. Please complete your profile and wait for notification!
+          </p>
+        )}
+
+        {canPost && showForm && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-[#4b2a75] mb-4">
-              Write a description
-            </h2>
+            <h2 className="text-xl font-semibold text-[#4b2a75] mb-4">Write a description</h2>
 
             {error && <p className="text-red-500 mb-4">{error}</p>}
 
@@ -110,13 +154,13 @@ const CounselorArticles = () => {
               type="text"
               placeholder="Title"
               value={title}
-              onChange={(e) => settitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               className="w-full border p-3 mb-4 rounded-md focus:ring-2 focus:ring-[#4b2a75]"
             />
             <textarea
               placeholder="Write your article here..."
               value={description}
-              onChange={(e) => setdescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full border p-3 mb-4 h-32 rounded-md resize-none focus:ring-2 focus:ring-[#4b2a75]"
             />
 
@@ -132,7 +176,15 @@ const CounselorArticles = () => {
           </div>
         )}
 
-        {/* Articles List */}
+        {canPost && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="fixed bottom-8 right-8 bg-[#4b2a75] text-white p-4 rounded-full shadow-lg hover:bg-[#3a2057] transition"
+          >
+            <IconPlus size={24} />
+          </button>
+        )}
+
         <div className="space-y-6">
           {articles.map((article, index) => (
             <div key={index} className="bg-white rounded-2xl p-8 shadow-sm">
@@ -142,14 +194,6 @@ const CounselorArticles = () => {
           ))}
         </div>
       </div>
-
-      {/* Floating Add Button */}
-      <button
-        onClick={() => setShowForm(!showForm)}
-        className="fixed bottom-8 right-8 bg-[#4b2a75] text-white p-4 rounded-full shadow-lg hover:bg-[#3a2057] transition"
-      >
-        <IconPlus size={24} />
-      </button>
     </div>
   );
 };

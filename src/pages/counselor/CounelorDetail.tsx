@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Navbar from "@/components/Navbar";
+import Navbar from "./component/Navbar";
 import axios from "axios";
+
 
 const CounselorProfile = () => {
   const location = useLocation();

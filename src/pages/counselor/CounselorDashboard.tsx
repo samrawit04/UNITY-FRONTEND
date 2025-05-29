@@ -35,21 +35,26 @@ useEffect(() => {
   const fetchProfile = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
+
+    // Add a slight delay (500ms) to ensure everything is ready after sign-up
+    await new Promise((res) => setTimeout(res, 500));
+
     try {
-     const decoded = jwtDecode<MyJwtPayload>(token);
-const userId = decoded.id; // ✅ Now this works!
-      const res = await axios.get(`http://localhost:3000/counselors/profile/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const decoded = jwtDecode<MyJwtPayload>(token);
+      const res = await axios.get(
+        `http://localhost:3000/counselors/profile/${decoded.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setProfile(res.data);
+      
     } catch (err) {
       console.error("Failed to fetch profile", err);
-    } finally {
-      setLoading(false);
     }
   };
+
   fetchProfile();
 }, []);
+
 
 
   // Scroll container styles to hide scrollbar but allow scrolling + drag scroll support
@@ -112,7 +117,7 @@ const userId = decoded.id; // ✅ Now this works!
         {/* Welcome + Job Application side by side */}
         <section className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
           <h1 className="text-3xl font-bold text-purple-800 whitespace-nowrap">
-            Welcome {profile?.user.firstName || "Counselor" },Thank you for being here!
+            Welcome {profile?.firstName || "Counselor" },Thank you for being here!
           </h1>
           <button
             onClick={() => navigate("/counselor/complete-profile")}

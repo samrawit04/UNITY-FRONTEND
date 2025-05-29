@@ -84,7 +84,7 @@ const UserRegister = () => {
       );
 
       if (response.data?.verificationId) {
-        navigate(
+        navigate( 
           `/verify-email?verificationId=${response.data.verificationId}`,
         );
       } else {

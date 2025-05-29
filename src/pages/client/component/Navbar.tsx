@@ -176,7 +176,7 @@ console.log("Fetched profile:", res.data); // ⬅️ Add this
        
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => alert("Logout clicked")}
+          onClick={() => navigate("/")}
           title="Logout">
           Logout
         </li>

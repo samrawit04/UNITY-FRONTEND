@@ -15,6 +15,14 @@ import {
   parse,
 } from "date-fns";
 
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
+
 interface TimeSlot {
   id?: string;
   start: string;
@@ -26,22 +34,15 @@ interface DaySchedule {
   slots: TimeSlot[];
 }
 
-const API_URL = "http://localhost:3000/schedule";
-
-function parseJwt(token: string) {
-  try {
-    return JSON.parse(atob(token.split(".")[1]));
-  } catch {
-    return null;
-  }
-}
-
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [newSlot, setNewSlot] = useState<TimeSlot>({ start: "", end: "" });
   const [counselorId, setCounselorId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const today = startOfToday();
 
@@ -50,30 +51,58 @@ export default function Calendar() {
     end: endOfMonth(currentMonth),
   });
 
+  // Fetch profile with status and approval
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      const decoded = parseJwt(token);
-      if (decoded && decoded.id) {
-        setCounselorId(decoded.id);
-      } else if (decoded && decoded.userId) {
-        setCounselorId(decoded.userId);
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoadingProfile(false);
+        return;
       }
-    }
+
+      const decoded = parseJwt(token);
+      const id = decoded?.id || decoded?.userId || null;
+      setCounselorId(id);
+
+      if (!id) {
+        setLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`http://localhost:3000/counselors/profile/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Expecting res.data.status (string) and res.data.isApproved (boolean)
+        setStatus(res.data.status);
+        setIsApproved(res.data.isApproved);
+      } catch (err) {
+        console.error("Error fetching profile", err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
+  // Normalize approval and status for logic
+  const approved = isApproved === true;
+  const activeStatus = status?.toLowerCase() === "active";
+  const canModifyAvailability = activeStatus && approved;
+
+  // Fetch schedule when currentMonth or counselorId changes
   useEffect(() => {
     const fetchSchedule = async () => {
+      if (!counselorId) return;
+
       const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
       const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
       try {
-        const res = await axios.get(`${API_URL}/available`, {
-          params: {
-            startDate,
-            endDate,
-            counselorId,
-          },
+        const res = await axios.get(`http://localhost:3000/schedule/available`, {
+          params: { startDate, endDate, counselorId },
         });
 
         const scheduleMap: Record<string, TimeSlot[]> = {};
@@ -101,21 +130,35 @@ export default function Calendar() {
     };
 
     fetchSchedule();
-  }, [currentMonth,counselorId]);
+  }, [currentMonth, counselorId]);
 
-  const getDateSchedule = (date: Date): TimeSlot[] => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const daySchedule = schedule.find((s) => s.date === dateStr);
-    return daySchedule?.slots || [];
+  // Auto update end time +1 hour when start time changes
+  const handleStartTimeChange = (startTime: string) => {
+    setNewSlot((prev) => {
+      if (!startTime) {
+        return { start: "", end: "" };
+      }
+
+      const parsedTime = parse(startTime, "HH:mm", new Date());
+      const endTimeDate = addHours(parsedTime, 1);
+      const endTime = format(endTimeDate, "HH:mm");
+      return { start: startTime, end: endTime };
+    });
   };
 
   const handleAddSlot = async () => {
     if (!selectedDate || !newSlot.start || !newSlot.end) return;
+    if (!canModifyAvailability) {
+      alert(
+        "Your account is not active or approved. You cannot post articles or set availabilities.",
+      );
+      return;
+    }
 
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
     try {
-      const res = await axios.post(API_URL, {
+      const res = await axios.post(`http://localhost:3000/schedule`, {
         date: dateStr,
         startTime: newSlot.start,
         endTime: newSlot.end,
@@ -147,18 +190,21 @@ export default function Calendar() {
 
   const handleRemoveSlot = async (date: Date, slot: TimeSlot) => {
     if (!slot.id) return;
+    if (!canModifyAvailability) {
+      alert(
+        "Your account is not active or approved. You cannot post articles or set availabilities.",
+      );
+      return;
+    }
 
     try {
-      await axios.delete(`${API_URL}/${slot.id}`);
+      await axios.delete(`http://localhost:3000/schedule/${slot.id}`);
       const dateStr = format(date, "yyyy-MM-dd");
 
       setSchedule((prev) =>
         prev.map((s) =>
           s.date === dateStr
-            ? {
-                ...s,
-                slots: s.slots.filter((t) => t.id !== slot.id),
-              }
+            ? { ...s, slots: s.slots.filter((t) => t.id !== slot.id) }
             : s,
         ),
       );
@@ -166,6 +212,13 @@ export default function Calendar() {
       console.error("Failed to delete slot", err);
     }
   };
+
+  const getDateSchedule = (date: Date): TimeSlot[] => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const daySchedule = schedule.find((s) => s.date === dateStr);
+    return daySchedule?.slots || [];
+  };
+
   const handleDateClick = (date: Date) => {
     if (isBefore(date, today)) {
       return;
@@ -173,19 +226,14 @@ export default function Calendar() {
     setSelectedDate(date);
   };
 
-  // When start time changes, update end time to be +1 hour automatically
-  const handleStartTimeChange = (startTime: string) => {
-    setNewSlot((prev) => {
-      if (!startTime) {
-        return { start: "", end: "" };
-      }
-
-      const parsedTime = parse(startTime, "HH:mm", new Date());
-      const endTimeDate = addHours(parsedTime, 1);
-      const endTime = format(endTimeDate, "HH:mm");
-      return { start: startTime, end: endTime };
-    });
-  };
+  if (loadingProfile) {
+    return (
+      <>
+        <Navbar />
+        <div className="p-8 text-center">Loading profile...</div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -193,9 +241,7 @@ export default function Calendar() {
       <div className="flex gap-8 p-8">
         <div className="w-96 rounded-lg bg-white shadow">
           <div className="flex items-center justify-between border-b px-6 py-2">
-            <span className="text-lg font-semibold">
-              {format(currentMonth, "MMMM yyyy")}
-            </span>
+            <span className="text-lg font-semibold">{format(currentMonth, "MMMM yyyy")}</span>
             <div className="flex gap-2">
               <button
                 onClick={() =>
@@ -203,7 +249,8 @@ export default function Calendar() {
                     (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1),
                   )
                 }
-                className="p-1 hover:bg-gray-100 rounded">
+                className="p-1 hover:bg-gray-100 rounded"
+              >
                 ←
               </button>
               <button
@@ -212,11 +259,13 @@ export default function Calendar() {
                     (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1),
                   )
                 }
-                className="p-1 hover:bg-gray-100 rounded">
+                className="p-1 hover:bg-gray-100 rounded"
+              >
                 →
               </button>
             </div>
           </div>
+
           <div className="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold">
             {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
               <div key={day} className="bg-white py-2">
@@ -224,6 +273,7 @@ export default function Calendar() {
               </div>
             ))}
           </div>
+
           <div className="grid grid-cols-7 gap-px bg-gray-200">
             {days.map((day) => {
               const hasSlots = getDateSchedule(day).length > 0;
@@ -231,7 +281,7 @@ export default function Calendar() {
               return (
                 <button
                   key={day.toString()}
-                  onClick={() => !isPastDate && setSelectedDate(day)}
+                  onClick={() => !isPastDate && handleDateClick(day)}
                   disabled={isPastDate}
                   className={` 
                    bg-white py-4 text-center relative 
@@ -247,7 +297,8 @@ export default function Calendar() {
                        ? "cursor-not-allowed bg-gray-100 text-gray-400"
                        : "hover:bg-gray-50"
                    }
-                 `}>
+                 `}
+                >
                   {format(day, "d")}
                   {hasSlots && !isPastDate && (
                     <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
@@ -259,12 +310,18 @@ export default function Calendar() {
             })}
           </div>
         </div>
+
         {selectedDate && (
           <div className="flex-1 rounded-lg bg-white p-6 shadow">
             <h2 className="text-lg font-semibold mb-6">
-              {format(selectedDate, "EEE MMM dd yyyy")} GMT+0300 (East Africa
-              Time)
+              {format(selectedDate, "EEE MMM dd yyyy")}
             </h2>
+
+            {!canModifyAvailability && (
+              <p className="text-red-600 mb-6 text-center">
+                Your account is not active or approved. You cannot post articles or set availabilities.
+              </p>
+            )}
 
             <div className="space-y-6">
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -277,6 +334,7 @@ export default function Calendar() {
                       value={newSlot.start}
                       onChange={(e) => handleStartTimeChange(e.target.value)}
                       className="border rounded px-2 py-1"
+                      disabled={!canModifyAvailability}
                     />
                   </div>
                   <div>
@@ -290,7 +348,15 @@ export default function Calendar() {
                   </div>
                   <button
                     onClick={handleAddSlot}
-                    className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">
+                    disabled={
+                      !canModifyAvailability || !newSlot.start || !newSlot.end
+                    }
+                    className={`px-4 py-1 rounded ${
+                      canModifyAvailability
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-400 cursor-not-allowed"
+                    }`}
+                  >
                     Add Slot
                   </button>
                 </div>
@@ -302,15 +368,19 @@ export default function Calendar() {
                   {getDateSchedule(selectedDate).map((slot, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-blue-50 rounded-md px-4 py-2">
+                      className="flex items-center justify-between bg-blue-50 rounded-md px-4 py-2"
+                    >
                       <span>
                         {slot.start} - {slot.end}
                       </span>
-                      <button
-                        onClick={() => handleRemoveSlot(selectedDate, slot)}
-                        className="text-red-600 hover:text-red-700">
-                        ×
-                      </button>
+                      {canModifyAvailability && (
+                        <button
+                          onClick={() => handleRemoveSlot(selectedDate, slot)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

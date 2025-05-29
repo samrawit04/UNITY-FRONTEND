@@ -30,23 +30,28 @@ export default function CounselorDashboard() {
 
   // --- Fetch Client Profile ---
   useEffect(() => {
-    const fetchProfile = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      try {
-        const decoded = jwtDecode<MyJwtPayload>(token);
-        const res = await axios.get(
-          `http://localhost:3000/clients/profile/${decoded.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setProfile(res.data);
-        setClientId(res.data.user.id);
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const fetchProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    // Add a slight delay (500ms) to ensure everything is ready after sign-up
+    await new Promise((res) => setTimeout(res, 500));
+
+    try {
+      const decoded = jwtDecode<MyJwtPayload>(token);
+      const res = await axios.get(
+        `http://localhost:3000/clients/profile/${decoded.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProfile(res.data);
+      setClientId(res.data.user.id);
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+    }
+  };
+
+  fetchProfile();
+}, []);
 
   // --- Fetch Counselors ---
   useEffect(() => {
@@ -154,10 +159,10 @@ export default function CounselorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
+    <div className="min-h-screen bg-purple-100 font-sans">
       <Navbar />
 
-      <main className="max-w-[1280px] mx-auto mt-12 bg-purple-100 rounded-xl p-10 shadow-lg">
+      <main className="max-w-[1280px] mx-auto px-20 bg-purple-100 rounded-xl p-10 ">
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
           <h1 className="text-3xl font-bold text-purple-800">
@@ -172,17 +177,17 @@ export default function CounselorDashboard() {
         </section>
 
         {/* Upcoming Sessions */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold text-center mb-6">Upcoming Sessions</h2>
+        <section className="mb-7 ml-30">
+          <h4 className="text-2xl font-medium text-center mb-4 text-gray-500" >Your  Sessions</h4>
           <div
             ref={upcomingScrollRef}
-            className="flex space-x-6 overflow-x-auto no-scrollbar cursor-grab"
+            className="flex space-x-6 overflow-x-auto no-scrollbar cursor-grab  "
           >
             {[
               "Pre-Marital Guidance Session",
               "Conflict Resolution",
-              "Family Counseling",
-              "Stress Management",
+              "Pre-Marital Guidance Session",
+              "Conflict Resolution",
             ].map((title, idx) => (
               <div
                 key={idx}
@@ -191,18 +196,18 @@ export default function CounselorDashboard() {
                 <div className="font-semibold mb-2">{title}</div>
                 <div className="text-gray-600">Date: 12/03/2018</div>
                 <div className="text-gray-600">Time: 2:00pm LT</div>
-                <div className="text-gray-600">Client: MELOS WERKUK</div>
+                <div className="text-gray-600">Counselor: Lidiya Fikir</div>
               </div>
             ))}
           </div>
         </section>
 
         {/* Counselor Section */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold text-center mb-6">Your Counselors</h2>
+        <section className="mb-12 ">
+          <h2 className="text-2xl font-medium text-center mb-4 text-gray-500">Your Counselors</h2>
           <div
             ref={counselorScrollRef}
-            className="flex space-x-6 overflow-x-auto no-scrollbar px-4"
+            className="flex space-x-6 overflow-x-auto no-scrollbar px-4 ml-32"
           >
             {counselors.map((counselor, idx) => {
               const fullName = `${counselor.firstName ?? "Unknown"} ${counselor.lastName ?? ""}`.trim();
