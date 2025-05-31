@@ -9,8 +9,7 @@ import Register from "./pages/auth/RegisterAs";
 import Login from "./pages/auth/Login";
 import CounselorRegister from "./pages/counselor/counselor-complete-profile";
 import EmailVerification from "./pages/auth/EmailVerification";
-import ClientCompleteProfile from "./pages/client/ClientProfile";
-import ClientProfileNext from "./pages/client/Client-complete-profile";
+import ClientCompleteProfile from "./pages/client/Client-complete-profile";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import CounselorPosts from "./pages/client/CounselorPosts";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
@@ -25,11 +24,8 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
-import PaymentForm from "./pages/client/PaymentForm";
-import PaymentSuccess from "./pages/client/paymentSuccess";
-import Pay from "./pages/client/pay";
-import ClientPayment from "./pages/client/clientPayment";
-
+import AdminPanel from "./pages/admin/adminPanel";
+import CounselorDetail from "./pages/admin/counselor.detail";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -55,16 +51,11 @@ const App = () => (
             <Route path="/reset-success" element={<ResetSuccess />} />
             <Route path="/reset-form" element={<ResetPasswordForm />} />
             <Route path="/verify-email" element={<EmailVerification />} />{" "}
-            <Route path="/client-profile" element={<ClientCompleteProfile />} />
             <Route
-              path="/client-profile-next"
-              element={<ClientProfileNext />}
+              path="/client-complete-profile"
+              element={<ClientCompleteProfile />}
             />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
-            <Route
-              path="/payment-form"
-              element={<PaymentForm amount="2000" />}
-            />
             <Route path="/counselor-posts" element={<CounselorPosts />} />
             <Route
               path="/counselor-dashboard"
@@ -75,13 +66,11 @@ const App = () => (
             <Route path="/counselor-feedback" element={<CounselorFeedback />} />
             <Route path="/final-session-set" element={<FinalSessionSet />} />
             <Route path="/counselor-articles" element={<CounselorArticles />} />
-
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/book-session" element={<BookingSession />} />
-            
-            <Route path="/payment/success" element={<PaymentSuccess />} />
-            <Route path="/client-payment" element={<ClientPayment />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/adminPanel" element={<AdminPanel />} />
+            <Route path="/Counselor/:userId" element={<CounselorDetail />} />
           </Routes>
         </div>
       </BrowserRouter>

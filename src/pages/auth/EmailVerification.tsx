@@ -69,57 +69,65 @@ const EmailVerification = () => {
     }
   };
 
-  const handleVerify = async () => {
-    console.log("Current verificationId:", verificationId);
-    if (!verificationId) {
-      setErrorMessage("Verification ID is missing.");
-      return;
-    }
+const handleVerify = async () => {
+  console.log("Current verificationId:", verificationId);
+  if (!verificationId) {
+    setErrorMessage("Verification ID is missing.");
+    return;
+  }
 
-    const code = verificationCode.join("");
-    if (code.length < 6) {
-      // changed to 6
-      setErrorMessage("Please enter the full 6-digit code.");
-      return;
-    }
+  const code = verificationCode.join("");
+  if (code.length < 6) {
+    setErrorMessage("Please enter the full 6-digit code.");
+    return;
+  }
 
-    setIsLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+  setIsLoading(true);
+  setErrorMessage(null);
+  setSuccessMessage(null);
 
-    try {
-      const res = await fetch("http://localhost:3000/user/verifyAccount", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verificationId, otp: code, isOtp: true }),
-      });
+  try {
+    const res = await fetch("http://localhost:3000/user/verifyAccount", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verificationId, otp: code, isOtp: true }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (
-        res.ok &&
-        (data.success || data.message?.toLowerCase().includes("success"))
-      ) {
-        setSuccessMessage("Account verified!");
-        setErrorMessage(null);
-        setTimeout(() => {
-          if (data.role?.toLowerCase() === "counselor") {
-            navigate("/counselor-dashboard");
-          } else {
-            navigate("/client-dashboard");
-          }
-        });
-      } else {
-        setErrorMessage(data.message || "Failed to verify OTP.");
-        setSuccessMessage(null);
+    if (
+      res.ok &&
+      (data.success || data.message?.toLowerCase().includes("success"))
+    ) {
+      setSuccessMessage("Account verified!");
+      setErrorMessage(null);
+
+      // Store token in localStorage if available
+      if (data.token && data.token.access_token) {
+        localStorage.setItem("token", data.token.access_token);
+        // Optionally store refresh token if you use it:
+        // localStorage.setItem("refresh_token", data.token.refresh_token);
       }
-    } catch {
-      setErrorMessage("Failed to verify OTP. Please try again.");
+
+      setTimeout(() => {
+        if (data.role?.toLowerCase() === "counselor") {
+          navigate("/counselor-dashboard");
+        } else {
+          navigate("/client-dashboard");
+        }
+      }, 1000);
+    } else {
+      setErrorMessage(data.message || "Failed to verify OTP.");
       setSuccessMessage(null);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } catch {
+    setErrorMessage("Failed to verify OTP. Please try again.");
+    setSuccessMessage(null);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleResendCode = async () => {
     if (!verificationId) {

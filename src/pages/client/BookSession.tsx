@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { IconUser } from "@tabler/icons-react";
+import NavBar from './component/Navbar';
+import {  useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import {
   format,
@@ -247,37 +247,7 @@ const BookSession = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm py-4 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <img
-              src="/src/asset/logo.png"
-              alt="Unity Logo"
-              className="h-8 w-auto"
-            />
-          </Link>
-          <div className="flex items-center space-x-6">
-            <Link
-              to="/"
-              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
-              Home
-            </Link>
-            <Link
-              to="/counselor-posts"
-              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
-              Counselor Posts
-            </Link>
-            <Link
-              to="/logout"
-              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
-              Logout
-            </Link>
-            <Link to="/profile" className="text-[#4b2a75] hover:text-[#3a2057]">
-              <IconUser size={24} />
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <NavBar />
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-2xl p-8 shadow-sm">

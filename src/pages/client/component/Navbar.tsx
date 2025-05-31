@@ -1,7 +1,7 @@
-import axios from "axios";
-import { jwtDecode } from "jwt-decode";
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
+import  { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
     interface MyJwtPayload {
@@ -10,30 +10,27 @@ const Navbar = () => {
       [key: string]: any;
     }
     
-    
       const navigate = useNavigate();
       const [showNotifications, setShowNotifications] = useState(false);
-      const [messageTo, setMessageTo] = useState("all");
-      const [messageText, setMessageText] = useState("");
     const [loading, setLoading] = useState(true);
     
     const [profile, setProfile] = useState(null);
     useEffect(() => {
       const fetchProfile = async () => {
-        const token = localStorage.getItem("token");
-        
-    
+        const token = localStorage.getItem("token");       
+  
         if (!token) return;
     
         try {
          const decoded = jwtDecode<MyJwtPayload>(token);
     const userId = decoded.id; // ✅ Now this works!
-    
-          const res = await axios.get(`http://localhost:3000/counselors/profile/${userId}`, {
+       console.log(userId);
+          const res = await axios.get(`http://localhost:3000/clients/profile/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           },
+          
         );
-
+console.log("Fetched profile:", res.data); // ⬅️ Add this
         setProfile(res.data);
       } catch (err) {
         console.error("Failed to fetch profile", err);
@@ -107,35 +104,12 @@ const Navbar = () => {
     );
   }
 
-  // Zoom Icon component (placeholder for zoom integration)
-  function ZoomIcon() {
-    return (
-      <button
-        onClick={() => alert("Zoom integration coming soon!")}
-        className="relative focus:outline-none"
-        aria-label="Zoom"
-        title="Zoom">
-        <svg
-          className="w-7 h-7 text-gray-700 hover:text-purple-700 transition"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M4 6h7a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"
-          />
-        </svg>
-      </button>
-    );
-  }
 
   // User Icon component
   function UserIcon({ onClick }) {
     return (
       <img
-        src="https://i.pravatar.cc/40"
+        src="../../../asset/userDefault.png"
         alt="User Profile"
         className="w-10 h-10 rounded-full border cursor-pointer hover:ring-2 hover:ring-purple-600 transition"
         onClick={onClick}
@@ -148,21 +122,6 @@ const Navbar = () => {
   function NotificationCard({ show }) {
     if (!show) return null;
 
-    // Handler for sending message (demo)
-    function handleSend(e) {
-      e.preventDefault();
-      if (!messageText.trim()) {
-        alert("Please enter a message.");
-        return;
-      }
-      alert(
-        `Message sent to ${
-          messageTo === "all" ? "All Clients" : messageTo
-        }:\n${messageText}`,
-      );
-      setMessageText("");
-      setMessageTo("all");
-    }
 
     return (
       <div className="absolute right-8 top-16 w-96 bg-white rounded-xl shadow-lg p-5 z-50 border border-gray-200 flex flex-col">
@@ -181,34 +140,6 @@ const Navbar = () => {
             </div>
           ))}
         </div>
-
-        <form onSubmit={handleSend} className="flex flex-col gap-3">
-          <select
-            aria-label="Select message recipient"
-            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={messageTo}
-            onChange={(e) => setMessageTo(e.target.value)}>
-            <option value="all">To All Clients</option>
-            {clients.map((client, i) => (
-              <option key={i} value={client}>
-                {client}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Send message"
-            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            aria-label="Send message"
-          />
-          <button
-            type="submit"
-            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition">
-            Send
-          </button>
-        </form>
       </div>
     );
   }
@@ -232,47 +163,42 @@ const Navbar = () => {
       <ul className="flex items-center gap-8 text-gray-700 font-medium">
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/counselor-dashboard")}
+          onClick={() => navigate("/client-dashboard")}
           title="dashboard">
           DashBoard
         </li>
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/counselor-articles")}
+          onClick={() => navigate("/counselor-posts")}
           title="Your Posts">
-          Your Posts
+          Counselor Posts
         </li>
+       
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/calendar")}
-          title="setavailablity">
-          set Availablity
-        </li>
-        <li
-          className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           title="Logout">
           Logout
         </li>
         <li>
           <NotificationBell onClick={() => setShowNotifications((s) => !s)} />
         </li>
-        <li>
-          <ZoomIcon />
-        </li>
-        <li
-          onClick={() => navigate("/counselor/complete-profile")}
-          className="cursor-pointer">
-          <img
-            src={
-              profile?.profilePicture
-                ? `http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`
-                : "https://i.pravatar.cc/40"
-            }
-            alt="Profile"
-            className="w-10 h-10 rounded-full border"
-          />
-        </li>
+      <li
+  onClick={() => navigate("/client-complete-profile")}
+  className="cursor-pointer"
+>
+  {profile?.profilePicture ? (
+    <img
+      src={`http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`}
+      alt="Profile"
+      className="w-10 h-10 rounded-full border object-cover"
+    />
+  ) : (
+    <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-semibold text-lg uppercase">
+      {profile?.user?.firstName?.charAt(0) || "U"}
+    </div>
+  )}
+</li>
       </ul>
 
       <NotificationCard show={showNotifications} />

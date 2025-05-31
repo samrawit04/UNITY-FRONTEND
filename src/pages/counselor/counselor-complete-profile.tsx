@@ -16,7 +16,7 @@ const ProfileForm = () => {
   // Form state
   const [form, setForm] = useState({
     phone: "",
-    address: "",
+    addres: "",
     gender: "",
     payment: "",
     bank: "",
@@ -51,7 +51,7 @@ const ProfileForm = () => {
         setForm((prev) => ({
           ...prev,
           phone: data.phoneNumber || "",
-          address: data.addres || "",
+          addres: data.addres || "",
           gender: data.gender || "",
           payment: data.preferredPaymentMethod || "",
           bank: data.bankAccountOrPhone || "",
@@ -122,7 +122,7 @@ const ProfileForm = () => {
     const formData = new FormData();
     formData.append("userId", userId);
     formData.append("phoneNumber", form.phone);
-    formData.append("addres", form.address);
+    formData.append("addres", form.addres);
     formData.append("gender", form.gender);
     formData.append("specialization", form.specialization);
     formData.append("bio", form.about);
@@ -234,9 +234,9 @@ const ProfileForm = () => {
 
             <input
               type="text"
-              name="address"
-              placeholder="Enter Your Address"
-              value={form.address}
+              name="addres"
+              placeholder="Enter Your addres"
+              value={form.addres}
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none"
             />

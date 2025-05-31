@@ -1,123 +1,340 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { IconBell, IconUser } from '@tabler/icons-react';
-import { Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { jwtDecode } from "jwt-decode";
+import Navbar from "./component/Navbar";
+import Rating from "react-rating-stars-component";
 
-const ClientDashboard = () => {
-  const upcomingSessions = [
-    {
-      id: 1,
-      type: 'Pre-Marital Guidance Session',
-      date: '12/03/2018',
-      time: '2:00pm LT',
-      counselor: 'MELOS WERKUK'
-    },
-    {
-      id: 2,
-      type: 'Pre-Marital Guidance Session',
-      date: '12/03/2025',
-      time: '2:00pm LT',
-      counselor: 'MELOS WERKUK'
-    }
-  ];
+export default function CounselorDashboard() {
+  interface MyJwtPayload {
+    id: string;
+    email: string;
+    [key: string]: any;
+  }
 
-  const notifications = [
-    {
-      id: 1,
-      message: 'hello abebe, here is your session link join and build a healthy relationship.',
-      link: 'session link'
-    },
-    {
-      id: 2,
-      message: 'You have a session with Counselor Helen today at 10:00 AM get ready.'
-    },
-    {
-      id: 3,
-      message: 'You have a session with Counselor Helen tomorrow at 10:00 AM.'
-    },
-    {
-      id: 4,
-      message: 'hello, abebe you have registered successfully!!'
+  const navigate = useNavigate();
+  const upcomingScrollRef = useRef(null);
+  const counselorScrollRef = useRef(null);
+
+  const [profile, setProfile] = useState(null);
+  const [clientId, setClientId] = useState(null);
+  const [counselors, setCounselors] = useState([]);
+  const [rated, setRated] = useState({});
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCounselor, setSelectedCounselor] = useState(null);
+  const [thankYou, setThankYou] = useState(false);
+  const [comments, setComments] = useState({});
+  const [ratings, setRatings] = useState({});
+  const [formError, setFormError] = useState("");
+
+  // --- Fetch Client Profile ---
+  useEffect(() => {
+  const fetchProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    // Add a slight delay (500ms) to ensure everything is ready after sign-up
+    await new Promise((res) => setTimeout(res, 500));
+
+    try {
+      const decoded = jwtDecode<MyJwtPayload>(token);
+      const res = await axios.get(
+        `http://localhost:3000/clients/profile/${decoded.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProfile(res.data);
+      setClientId(res.data.user.id);
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
     }
-  ];
+  };
+
+  fetchProfile();
+}, []);
+
+  // --- Fetch Counselors ---
+  useEffect(() => {
+    const fetchCounselors = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/counselors");
+        const data = await res.json();
+        setCounselors(data);
+      } catch (err) {
+        console.error("Failed to fetch counselors", err);
+      }
+    };
+    fetchCounselors();
+  }, []);
+
+  // --- Fetch Client's Previous Reviews ---
+  useEffect(() => {
+    if (!clientId) return;
+    const fetchReviews = async () => {
+      try {
+        const res = await axios.get(
+          `http://localhost:3000/reviews/client/${clientId}`
+        );
+        const ratingsMap = {};
+        res.data.forEach((review) => {
+          const counselorId = review.counselor?.userId || review.counselorId;
+          ratingsMap[counselorId] = review.rating;
+        });
+        setRated(ratingsMap);
+      } catch (err) {
+        console.error("Failed to fetch client reviews", err);
+      }
+    };
+    fetchReviews();
+  }, [clientId]);
+
+  // --- Drag Scroll Hook ---
+  const useDragScroll = (ref) => {
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+
+      let isDown = false, startX, scrollLeft;
+      const onMouseDown = (e) => {
+        isDown = true;
+        el.classList.add("cursor-grabbing");
+        startX = e.pageX - el.offsetLeft;
+        scrollLeft = el.scrollLeft;
+      };
+      const stop = () => {
+        isDown = false;
+        el.classList.remove("cursor-grabbing");
+      };
+      const onMouseMove = (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - el.offsetLeft;
+        el.scrollLeft = scrollLeft - (x - startX) * 2;
+      };
+
+      el.addEventListener("mousedown", onMouseDown);
+      el.addEventListener("mouseleave", stop);
+      el.addEventListener("mouseup", stop);
+      el.addEventListener("mousemove", onMouseMove);
+
+      return () => {
+        el.removeEventListener("mousedown", onMouseDown);
+        el.removeEventListener("mouseleave", stop);
+        el.removeEventListener("mouseup", stop);
+        el.removeEventListener("mousemove", onMouseMove);
+      };
+    }, [ref]);
+  };
+
+  useDragScroll(upcomingScrollRef);
+  useDragScroll(counselorScrollRef);
+
+  // --- Submit Review ---
+  const submitReview = async () => {
+    const comment = comments[selectedCounselor.id]?.trim();
+    const rating = ratings[selectedCounselor.id] || 0;
+
+    if (!comment) {
+      setFormError("Please enter a comment before submitting your review.");
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:3000/reviews", {
+        counselorId: selectedCounselor.id,
+        clientId,
+        comment,
+        rating,
+      });
+
+      setRated((prev) => ({
+        ...prev,
+        [selectedCounselor.id]: rating,
+      }));
+      setThankYou(true);
+      setFormError("");
+    } catch (err) {
+      setFormError("Failed to submit review.");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm py-4 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <img src="/src/asset/logo.png" alt="Unity Logo" className="h-8 w-auto" />
-          </Link>
-          <div className="flex items-center space-x-6">
-            <Link to="/" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
-              Home
-            </Link>
-            <Link to="/counselor-posts" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
-              Counselor Posts
-            </Link>
-            <Link to="/logout" className="text-[#4b2a75] hover:text-[#3a2057] font-medium">Logout</Link>
+    <div className="min-h-screen bg-purple-100 font-sans">
+      <Navbar />
 
-            <Link to="/profile" className="text-[#4b2a75] hover:text-[#3a2057]">
-              <IconUser size={24} />
-            </Link>
-          </div>
-        </div>
-      </nav>
-      
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Welcome Section */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-sm">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-[#4b2a75] mb-2">welcome Abebe, we're here for you!</h1>
-              <p className="text-gray-600">You're one step closer to building a healthier and happier relationship.</p>
-            </div>
-            <Link to="/book-session">
-              <Button className="bg-[#4b2a75] hover:bg-[#3a2057] text-white px-8 py-3 rounded-lg text-base font-semibold">
-                Book a session
-              </Button>
-            </Link>
-            <div className="mt-12">
-              <h2 className="text-xl font-semibold text-[#4b2a75] mb-6">UP COMING SESSIONS</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {upcomingSessions.map((session) => (
-                  <div key={session.id} className="bg-gray-50 rounded-lg p-6 border border-gray-100">
-                    <h3 className="font-medium text-gray-800 mb-4">{session.type}</h3>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <p>Date: {session.date}</p>
-                      <p>Time: {session.time}</p>
-                      <p>COUNSELOR: {session.counselor}</p>
-                    </div>
-                  </div>
-                ))}
+      <main className="max-w-[1280px] mx-auto px-20 bg-purple-100 rounded-xl p-10 ">
+        {/* Welcome Section */}
+        <section className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+          <h1 className="text-3xl font-bold text-purple-800">
+            Welcome {profile?.user?.firstName || "User"}!
+          </h1>
+          <button
+            onClick={() => navigate("/book-session")}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg"
+          >
+            Book Session
+          </button>
+        </section>
+
+        {/* Upcoming Sessions */}
+        <section className="mb-7 ml-30">
+          <h4 className="text-2xl font-medium text-center mb-4 text-gray-500" >Your  Sessions</h4>
+          <div
+            ref={upcomingScrollRef}
+            className="flex space-x-6 overflow-x-auto no-scrollbar cursor-grab  "
+          >
+            {[
+              "Pre-Marital Guidance Session",
+              "Conflict Resolution",
+              "Pre-Marital Guidance Session",
+              "Conflict Resolution",
+            ].map((title, idx) => (
+              <div
+                key={idx}
+                className="min-w-[250px] bg-white rounded-lg p-5 border text-center shadow-sm"
+              >
+                <div className="font-semibold mb-2">{title}</div>
+                <div className="text-gray-600">Date: 12/03/2018</div>
+                <div className="text-gray-600">Time: 2:00pm LT</div>
+                <div className="text-gray-600">Counselor: Lidiya Fikir</div>
               </div>
-            </div>
+            ))}
           </div>
-  
-          {/* Notifications Panel */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-[#4b2a75]">Notifications</h2>
-              <IconBell className="text-[#4b2a75]" />
-            </div>
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <div key={notification.id} className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-700">{notification.message}</p>
-                  {notification.link && (
-                    <a href="#" className="text-sm text-[#4b2a75] hover:underline mt-2 block">
-                      {notification.link}
-                    </a>
+        </section>
+
+        {/* Counselor Section */}
+        <section className="mb-12 ">
+          <h2 className="text-2xl font-medium text-center mb-4 text-gray-500">Your Counselors</h2>
+          <div
+            ref={counselorScrollRef}
+            className="flex space-x-6 overflow-x-auto no-scrollbar px-4 ml-32"
+          >
+            {counselors.map((counselor, idx) => {
+              const fullName = `${counselor.firstName ?? "Unknown"} ${counselor.lastName ?? ""}`.trim();
+              const counselorId = counselor.id;
+              const profilePic = counselor.image;
+              const initial = counselor.firstName?.charAt(0).toUpperCase() || "?";
+
+              return (
+                <div
+                  key={counselorId ?? idx}
+                  className="min-w-[250px] bg-white rounded-lg p-4 border shadow-sm flex flex-col items-center"
+                >
+                  {profilePic ? (
+                    <img
+                      src={`http://localhost:3000/uploads/profile-pictures/${profilePic}`}
+                      alt={fullName}
+                      className="w-20 h-20 rounded-full object-cover mb-3"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-purple-200 rounded-full flex items-center justify-center text-2xl font-bold text-purple-700 mb-3">
+                      {initial}
+                    </div>
+                  )}
+
+                  <div className="font-semibold mb-1 text-gray-800">{fullName}</div>
+
+                  {rated[counselorId] ? (
+                    <Rating
+                      count={5}
+                      size={20}
+                      edit={false}
+                      value={rated[counselorId]}
+                      activeColor="#ffd700"
+                    />
+                  ) : (
+                    <button
+                      className="bg-purple-600 hover:bg-purple-700 text-white py-1 px-4 rounded text-sm"
+                      onClick={() => {
+                        setModalOpen(true);
+                        setSelectedCounselor(counselor);
+                        setThankYou(false);
+                        setFormError("");
+                      }}
+                    >
+                      Rate
+                    </button>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </section>
+      </main>
+
+      {/* Rating Modal */}
+      {modalOpen && selectedCounselor && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/10 z-50 flex justify-center items-center">
+          <div className="bg-white w-96 p-6 rounded-lg shadow-xl relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-red-700 text-lg"
+              onClick={() => {
+                setModalOpen(false);
+                setSelectedCounselor(null);
+              }}
+            >
+              ✕
+            </button>
+
+            {!thankYou ? (
+              <>
+                <h3 className="text-lg font-semibold mb-3 text-center">
+                  Rate {selectedCounselor.firstName}
+                </h3>
+                <textarea
+                  value={comments[selectedCounselor.id] || ""}
+                  onChange={(e) => {
+                    setComments((prev) => ({
+                      ...prev,
+                      [selectedCounselor.id]: e.target.value,
+                    }));
+                    setFormError("");
+                  }}
+                  placeholder="Write your feedback..."
+                  className="w-full p-2 border border-gray-300 rounded mb-2 text-sm"
+                  rows={3}
+                />
+                {formError && (
+                  <p className="text-red-500 text-sm mb-2">{formError}</p>
+                )}
+                <Rating
+                  count={5}
+                  size={28}
+                  activeColor="#ffd700"
+                  value={ratings[selectedCounselor.id] || 0}
+                  onChange={(val) =>
+                    setRatings((prev) => ({
+                      ...prev,
+                      [selectedCounselor.id]: val,
+                    }))
+                  }
+                />
+                <button
+                  className="mt-4 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
+                  onClick={submitReview}
+                >
+                  Submit Review
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-10">
+                <h3 className="text-xl font-semibold mb-2 text-green-600">Thank you!</h3>
+                <p className="text-sm text-gray-600">Your review has been submitted.</p>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
-};
-
-export default ClientDashboard;
+}

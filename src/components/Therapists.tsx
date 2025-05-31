@@ -1,15 +1,40 @@
+import { useEffect, useState } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User } from "lucide-react";
-
-const therapists = [
-  { name: "Emma", id: 1, image: "/therapists/john.jpg" },
-  { name: "Monica", id: 2, image: "/therapists/john.jpg" },
-  { name: "Sandra", id: 3, image: "/therapists/john.jpg" },
-  { name: "John", id: 4, image: "/therapists/john.jpg" },
-  { name: "Amara", id: 5, image: "/therapists/john.jpg" }
-];
 
 const Therapists = () => {
+  const [counselors, setCounselors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCounselors = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/counselors/approved");
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        console.log("Counselors fetched:", data);
+        setCounselors(data);
+      } catch (err) {
+        console.error("Failed to fetch counselors", err);
+        setError("Failed to load counselors.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCounselors();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading counselors...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8 text-center text-red-600">{error}</div>;
+  }
+
   return (
     <div
       id="therapists"
@@ -21,34 +46,55 @@ const Therapists = () => {
           Dedicated to help you
         </h3>
         <h2 className="text-2xl md:text-3xl font-bold">
-          Our Highly Experienced Relationship Therapists
+          Meet Our Highly Experienced Relationship Therapists
         </h2>
       </div>
+      {/* Scrollable Row */}
+      <div className="w-full max-w-6xl overflow-x-auto no-scrollbar">
+        <div className="flex gap-20 px-4 mt-10">
+          {counselors.length === 0 && (
+            <p className="text-center w-full">No counselors found.</p>
+          )}
+         {counselors.map((counselor) => {
+  const fullName = `${counselor.firstName || ""} ${counselor.lastName || ""}`.trim();
+  return (
+    <div key={counselor.id} className="flex flex-col items-center flex-shrink-0 min-w-[160px]">
+      <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-4 shadow-md">
+        <Avatar className="w-full h-full rounded-none">
+          <AvatarImage
+            src={
+              counselor.profilePicture
+                ? `http://localhost:3000/uploads/profile-pictures/${counselor.profilePicture}`
+                : undefined
+            }
+            alt={`${fullName}'s profile`}
+            className="object-cover w-full h-full rounded-none"
+          />
+          <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none text-xl font-semibold text-purple-700">
+            {counselor.user?.firstName?.[0] || "?"}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+      <p className="text-md md:text-lg font-semibold text-gray-800 text-center">
+        {fullName || "Therapist"}
+      </p>
+    </div>
+  );
+})}
 
-      {/* Responsive Grid */}
-      <div className="w-full max-w-6xl">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 px-4">
-          {therapists.map((therapist) => (
-            <div key={therapist.id} className="flex flex-col items-center">
-              <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-3">
-                <Avatar className="w-full h-full rounded-none">
-                  <AvatarImage
-                    src={therapist.image}
-                    alt={`${therapist.name}'s profile picture`}
-                    className="object-cover w-full h-full rounded-none"
-                  />
-                  <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none">
-                    <User className="w-16 h-16 text-gray-500" />
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <p className="text-md md:text-lg font-semibold text-gray-800">
-                {therapist.name}
-              </p>
-            </div>
-          ))}
         </div>
       </div>
+
+      {/* Tailwind utility to hide scrollbar */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
