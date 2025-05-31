@@ -25,6 +25,10 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
+import PaymentForm from "./pages/client/PaymentForm";
+import PaymentSuccess from "./pages/client/paymentSuccess";
+import Pay from "./pages/client/pay";
+import ClientPayment from "./pages/client/clientPayment";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +61,10 @@ const App = () => (
               element={<ClientProfileNext />}
             />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route
+              path="/payment-form"
+              element={<PaymentForm amount="2000" />}
+            />
             <Route path="/counselor-posts" element={<CounselorPosts />} />
             <Route
               path="/counselor-dashboard"
@@ -67,8 +75,12 @@ const App = () => (
             <Route path="/counselor-feedback" element={<CounselorFeedback />} />
             <Route path="/final-session-set" element={<FinalSessionSet />} />
             <Route path="/counselor-articles" element={<CounselorArticles />} />
+
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/book-session" element={<BookingSession />} />
+            
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/client-payment" element={<ClientPayment />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

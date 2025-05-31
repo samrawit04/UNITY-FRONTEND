@@ -16,6 +16,7 @@ import {
   subMonths,
   addMonths,
 } from "date-fns";
+import Pay from "./pay";
 interface TimeSlot {
   id?: string;
   start: string;
@@ -34,36 +35,58 @@ interface Therapist {
   image: string;
 }
 
+interface Client {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 const API_URL = "http://localhost:3000";
-const counselorId = "8a354908-ec2a-40bc-ad64-6f7e598b78be";
+const amount = "1000";
+
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
 
 const BookSession = () => {
+  const navigate = useNavigate();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
-  const navigate = useNavigate();
+  const [schedule, setSchedule] = useState<DaySchedule[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [clientData, setClientData] = useState<Client | null>(null);
+
+  const [fname, setFname] = useState("");
+  const [lname, setLname] = useState("");
+  const [email, setEmail] = useState("");
+
+  const [clientId, setClientId] = useState("");
+  const tx_ref = `tx-${Date.now()}`;
+  const public_key = "CHAPUBK_TEST-wT13hhBqi9jnI7GCJunUAQNGHb2HMYC3";
 
   const params = useParams<{ yearMonth?: string }>();
 
   const initialMonth = params.yearMonth
     ? parse(params.yearMonth, "yyyy-MM", new Date())
     : new Date();
-
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(
     startOfMonth(initialMonth),
   );
-  const [schedule, setSchedule] = useState<DaySchedule[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [therapists, setTherapists] = useState<Therapist[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const today = startOfToday();
-
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+
   useEffect(() => {
     axios
       .get("http://localhost:3000/counselors")
@@ -75,6 +98,40 @@ const BookSession = () => {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const fetchClientData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("No token found");
+        }
+
+        const decoded = parseJwt(token);
+        if (!decoded || !decoded.id) {
+          throw new Error("Invalid token");
+        }
+
+        const response = await axios.get(`${API_URL}/clients/${decoded.id}`);
+        setClientData(response.data);
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClientData();
+  }, []);
+
+  // useEffect(() => {
+  //   if (selectedTherapist) {
+  //     setFname(selectedTherapist.firstName || "");
+  //     setLname(selectedTherapist.lastName || "");
+  //     setEmail(selectedTherapist.email || "");
+  //     setClientId(selectedTherapist.id || "");
+  //   }
+  // }, [selectedTherapist]);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -117,6 +174,47 @@ const BookSession = () => {
 
     fetchSchedule();
   }, [selectedTherapist, currentMonth]);
+  const handleNextStep = async () => {
+    if (!selectedSlot || !selectedSlot.id) {
+      alert("Please select a valid time slot.");
+      return;
+    }
+
+    // scheduleId is a string (UUID), no conversion to number
+    const scheduleId = selectedSlot.id;
+
+    if (!selectedTherapist?.id) {
+      alert("Please select a therapist.");
+      return;
+    }
+
+    if (!clientData.id) {
+      alert("Client information missing. Please log in again.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:3000/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduleId: scheduleId, // send UUID string directly
+          clientId: clientData.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(`Failed to book: ${data.message || JSON.stringify(data)}`);
+        return;
+      }
+
+      setCurrentStep(currentStep + 1);
+    } catch (err: any) {
+      alert("Error booking appointment: " + err.message);
+    }
+  };
 
   const getDateSchedule = (date: Date): TimeSlot[] => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -127,48 +225,15 @@ const BookSession = () => {
   const handleDateClick = (date: Date) => {
     if (isBefore(date, today)) return;
     setSelectedDate(date);
-    setSelectedSlot(null); // Reset selected time slot when date changes
+    setSelectedSlot(null);
   };
 
-  // Navigate to prev month page
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => subMonths(prev, 1));
   };
 
-  // Navigate to next month page
   const handleNextMonth = () => {
     setCurrentMonth((prev) => addMonths(prev, 1));
-  };
-
-  const handleBookSlot = async () => {
-    if (!selectedDate || !selectedSlot) return;
-
-    try {
-      await axios.post(`${API_URL}/api/bookings`, {
-        scheduleId: selectedSlot.id,
-        counselorId,
-      });
-
-      alert("Booking confirmed!");
-
-      // Remove the booked slot from schedule state
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      setSchedule((prevSchedule) =>
-        prevSchedule.map((day) =>
-          day.date === dateStr
-            ? {
-                ...day,
-                slots: day.slots.filter((slot) => slot.id !== selectedSlot.id),
-              }
-            : day,
-        ),
-      );
-
-      setSelectedSlot(null);
-    } catch (err) {
-      console.error("Booking failed", err);
-      alert("Failed to book the slot.");
-    }
   };
 
   const steps = [
@@ -176,7 +241,7 @@ const BookSession = () => {
     { id: 2, title: "Therapist Availability" },
     { id: 3, title: "Summary" },
     { id: 4, title: "Payment" },
-    { id: 5, title: "Confirmation" }, // Added a title for the confirmation step
+    { id: 5, title: "Confirmation" },
   ];
 
   return (
@@ -477,9 +542,7 @@ const BookSession = () => {
                   Back
                 </button>
                 <button
-                  onClick={() =>
-                    selectedSlot && setCurrentStep(currentStep + 1)
-                  }
+                  onClick={handleNextStep}
                   disabled={!selectedSlot}
                   className={`bg-[#4b2a75] text-white px-6 py-2 rounded-md transition-colors ${
                     !selectedSlot
@@ -554,6 +617,7 @@ const BookSession = () => {
                     className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
                     Back
                   </button>
+
                   <button
                     onClick={() => setCurrentStep(currentStep + 1)}
                     className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
@@ -579,83 +643,83 @@ const BookSession = () => {
                     <h4 className="font-medium text-[#4b2a75]">
                       {selectedTherapist?.name}
                     </h4>
-                    <p className="text-gray-600">
-                      {selectedTherapist?.specialization}
-                    </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
                     <span className="text-gray-600">Total Amount</span>
-                    <span className="font-medium text-[#4b2a75]">
-                      {selectedTherapist?.rate}
-                    </span>
+                    <span className="font-medium text-[#4b2a75]">{amount}</span>
                   </div>
                 </div>
               </div>
 
-              <form className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="cardName"
-                    className="block text-sm font-medium text-gray-700 mb-1">
-                    Name on Card
-                  </label>
-                  <input
-                    type="text"
-                    id="cardName"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                    placeholder="John Doe"
-                    required
-                  />
+              <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+                <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+                    Client Payment
+                  </h2>
+                  <form className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="fname"
+                        className="block text-sm font-medium text-gray-700">
+                        First Name
+                      </label>
+                      <input
+                        id="fname"
+                        type="text"
+                        value={fname}
+                        onChange={(e) => setFname(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="John"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="lname"
+                        className="block text-sm font-medium text-gray-700">
+                        Last Name
+                      </label>
+                      <input
+                        id="lname"
+                        type="text"
+                        value={lname}
+                        onChange={(e) => setLname(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Doe"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700">
+                        Email
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="john.doe@example.com"
+                        required
+                      />
+                    </div>
+                    <div className="pt-4">
+                      <Pay
+                        fname={fname}
+                        lname={lname}
+                        amount={amount}
+                        tx_ref={tx_ref}
+                        public_key={public_key}
+                        clientId={clientId}
+                      />
+                    </div>
+                  </form>
                 </div>
-
-                <div>
-                  <label
-                    htmlFor="cardNumber"
-                    className="block text-sm font-medium text-gray-700 mb-1">
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    id="cardNumber"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                    placeholder="1234 5678 9012 3456"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="expiryDate"
-                      className="block text-sm font-medium text-gray-700 mb-1">
-                      Expiry Date
-                    </label>
-                    <input
-                      type="text"
-                      id="expiryDate"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                      placeholder="MM/YY"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="cvv"
-                      className="block text-sm font-medium text-gray-700 mb-1">
-                      CVV
-                    </label>
-                    <input
-                      type="text"
-                      id="cvv"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                      placeholder="123"
-                      required
-                    />
-                  </div>
-                </div>
-              </form>
+              </div>
 
               <div className="mt-8 flex justify-between">
                 <button
@@ -668,7 +732,7 @@ const BookSession = () => {
                     setCurrentStep(currentStep + 1);
                   }}
                   className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
-                  Complete Payment
+                  Next
                 </button>
               </div>
             </div>
