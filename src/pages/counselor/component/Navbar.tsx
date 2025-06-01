@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import  { useEffect, useState } from 'react';
+import  { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import defaultUser from '../../../asset/userDefault.png';
 
 const Navbar = () => {
     interface MyJwtPayload {
@@ -12,11 +13,15 @@ const Navbar = () => {
     
       const navigate = useNavigate();
       const [showNotifications, setShowNotifications] = useState(false);
-      const [messageTo, setMessageTo] = useState("all");
-      const [messageText, setMessageText] = useState("");
+      
     const [loading, setLoading] = useState(true);
-    
     const [profile, setProfile] = useState(null);
+const [notifications, setNotifications] = useState([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const cardRef = useRef(null);
+  const [userId, setUserId] = useState("");
+
+    // Fetch user and profile
     useEffect(() => {
       const fetchProfile = async () => {
         const token = localStorage.getItem("token");
@@ -27,7 +32,7 @@ const Navbar = () => {
         try {
          const decoded = jwtDecode<MyJwtPayload>(token);
     const userId = decoded.id; // ✅ Now this works!
-    
+    setUserId(userId)
           const res = await axios.get(`http://localhost:3000/counselors/profile/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -44,174 +49,133 @@ const Navbar = () => {
     fetchProfile();
   }, []);
 
-  // Sample notifications
-  const notifications = [
-    {
-      id: 1,
-      text: "hello abebe, here is your session link join and build a healthy relationship. https://www.figma.com/design/...",
-    },
-    {
-      id: 2,
-      text: "New Session Booked: Client Melos has scheduled a session for April 6 at 2:00 PM.",
-    },
-    {
-      id: 3,
-      text: "You have a session with Counselor Helen tomorrow at 10:00 AM.",
-    },
-    {
-      id: 4,
-      text: "lorem ipsum",
-    },
-    {
-      id: 5,
-      text: "hello , counselor you have registered successfully!!",
-    },
-  ];
+  
+   // Fetch notifications (initial + polling)
+   useEffect(() => {
+    if (!userId) return;
+    const token = localStorage.getItem("token");
+  
+    const fetchAllNotifications = async () => {
+      try {
+        const res = await fetch(`http://localhost:3000/notifications?role=COUNSELOR&userId=${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const all = await res.json();
+        setNotifications(all);
+        
+        const unread = all.filter(n => !n.isRead);
+        setNotificationCount(unread.length); // ✅ Only unread count
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      }
+    };
+  
+    fetchAllNotifications();
+  
+    const interval = setInterval(fetchAllNotifications, 5000); // poll every 10s
+    return () => clearInterval(interval);
+  }, [userId]);
+  
 
-  // Sample clients for selection and display
-  const clients = [
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Melos Werkuk",
-    "Melos Werkuk",
-    "Melos Werkuk",
-    "Helen Tesfaye",
-    "Sara Alemu",
-    "Daniel Bekele",
-  ];
+  // Close notification card on outside click
+ useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+   // Mark as read when opened
+   useEffect(() => {
+    if (!showNotifications || notificationCount === 0) return;
+  
+    const markAsRead = async () => {
+      try {
+        await fetch(`http://localhost:3000/notifications/mark-read`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ userId, role: "COUNSELOR" }),
+        });
+  
+        setNotificationCount(0); // ✅ Clear after marking
+        // Optional: also update the notification list to reflect isRead = true
+        setNotifications((prev) =>
+          prev.map((n) => ({ ...n, isRead: true }))
+        );
+      } catch (err) {
+        console.error("Failed to mark notifications as read", err);
+      }
+    };
+  
+    markAsRead();
+  }, [showNotifications]);
+  
 
   // Notification Bell component
-  function NotificationBell({ onClick }) {
+ function NotificationBell({ onClick }) {
     return (
-      <button
-        onClick={onClick}
-        className="relative focus:outline-none"
-        aria-label="Show notifications"
-        title="Notifications">
+      <button onClick={onClick} className="relative focus:outline-none">
         <svg
           className="w-7 h-7 text-gray-700 hover:text-purple-700 transition"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
-          viewBox="0 0 24 24">
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
+        {notificationCount > 0 && (
+          <span className="absolute top-0 right-0 w-4 h-4 bg-purple-500 text-white text-xs rounded-full flex items-center justify-center">
+            {notificationCount}
+          </span>
+        )}
       </button>
     );
   }
 
-  // Zoom Icon component (placeholder for zoom integration)
-  function ZoomIcon() {
-    return (
-      <button
-        onClick={() => alert("Zoom integration coming soon!")}
-        className="relative focus:outline-none"
-        aria-label="Zoom"
-        title="Zoom">
-        <svg
-          className="w-7 h-7 text-gray-700 hover:text-purple-700 transition"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M4 6h7a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"
-          />
-        </svg>
-      </button>
-    );
-  }
-
-  // User Icon component
-  function UserIcon({ onClick }) {
-    return (
-      <img
-        src="https://i.pravatar.cc/40"
-        alt="User Profile"
-        className="w-10 h-10 rounded-full border cursor-pointer hover:ring-2 hover:ring-purple-600 transition"
-        onClick={onClick}
-        title="Go to Register Counselor"
-      />
-    );
-  }
 
   // Notification Card with message field and recipient select
   function NotificationCard({ show }) {
-    if (!show) return null;
+  if (!show) return null;
 
-    // Handler for sending message (demo)
-    function handleSend(e) {
-      e.preventDefault();
-      if (!messageText.trim()) {
-        alert("Please enter a message.");
-        return;
-      }
-      alert(
-        `Message sent to ${
-          messageTo === "all" ? "All Clients" : messageTo
-        }:\n${messageText}`,
-      );
-      setMessageText("");
-      setMessageTo("all");
-    }
-
-    return (
-      <div className="absolute right-8 top-16 w-96 bg-white rounded-xl shadow-lg p-5 z-50 border border-gray-200 flex flex-col">
-        <h2 className="font-semibold text-lg mb-3 flex items-center gap-2">
-          Notifications{" "}
-          <span role="img" aria-label="bell">
-            🔔
-          </span>
-        </h2>
-        <div className="space-y-2 max-h-52 overflow-y-auto mb-4 pr-1">
-          {notifications.map((note) => (
+  return (
+    <div
+      ref={cardRef}
+      className="absolute right-8 top-16 w-96 bg-white rounded-xl shadow-lg p-5 z-50 border border-gray-200 flex flex-col"
+    >
+      <h2 className="font-semibold text-lg mb-3">Notifications 🔔</h2>
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="text-sm text-gray-500">No notifications yet.</p>
+        ) : (
+          notifications.map((note, i) => (
             <div
-              key={note.id}
-              className="bg-gray-100 rounded p-2 text-sm break-words">
-              {note.text}
+              key={i}
+              className={`rounded p-3 text-sm ${
+                note.isRead ? 'bg-gray-100' : 'bg-purple-100 font-semibold'
+              }`}
+            >
+              {note.message}
+              <div className="text-xs text-gray-400 mt-1">
+                {new Date(note.createdAt).toLocaleString()}
+              </div>
             </div>
-          ))}
-        </div>
-
-        <form onSubmit={handleSend} className="flex flex-col gap-3">
-          <select
-            aria-label="Select message recipient"
-            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={messageTo}
-            onChange={(e) => setMessageTo(e.target.value)}>
-            <option value="all">To All Clients</option>
-            {clients.map((client, i) => (
-              <option key={i} value={client}>
-                {client}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Send message"
-            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            aria-label="Send message"
-          />
-          <button
-            type="submit"
-            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition">
-            Send
-          </button>
-        </form>
+          ))
+        )}
       </div>
-    );
-  }
-
+    </div>
+  );
+}
   return (
     <nav className="bg-white shadow flex items-center justify-between px-8 py-4 sticky top-0 z-50">
       {/* Left side - logo */}
@@ -256,21 +220,19 @@ const Navbar = () => {
         <li>
           <NotificationBell onClick={() => setShowNotifications((s) => !s)} />
         </li>
-        <li>
-          <ZoomIcon />
-        </li>
+        
         <li
           onClick={() => navigate("/counselor/complete-profile")}
           className="cursor-pointer">
           <img
-            src={
-              profile?.profilePicture
-                ? `http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`
-                : "https://i.pravatar.cc/40"
-            }
-            alt="Profile"
-            className="w-10 h-10 rounded-full border"
-          />
+  src={
+    profile?.profilePicture
+      ? `http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`
+      : defaultUser
+  }
+  alt="P"
+  className="w-10 h-10 rounded-full border object-cover"
+/>
         </li>
       </ul>
 

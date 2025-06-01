@@ -1,116 +1,182 @@
 import React, { useState, useEffect } from 'react';
 import CounselorPosts from './CounselorPosts';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { JwtPayload } from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
+
+interface MyJwtPayload extends JwtPayload {
+  id: string;
+  email?: string;
+  role?: string;
+}
+
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
 const AdminPanel = () => {
-const navigate = useNavigate();
-  const [message, setMessage] = useState('');
-  const [target, setTarget] = useState('clients');
   const [counselors, setCounselors] = useState([]);
- const [clients, setClients] = useState([]);
- const [confirmAction, setConfirmAction] = useState(null); // { type: 'activate' | 'deactivate' | 'approve', counselor: object }
-const [notifications, setNotifications] = useState([
-  { sender: 'admin', senderName: '', message: 'Platform maintenance tomorrow' },
-  { sender: null, senderName: '', message: 'Counselor registered successfully' },
-  { sender: 'counselor', senderName: 'Eyob Getachew', message: 'Please approve my profile' },
-  { sender: 'counselor', senderName: 'Eyob Getachew', message: 'Please approve my profile' },
-  { sender: 'counselor', senderName: 'Eyob Getachew', message: 'Please approve my profile' },
-  { sender: 'counselor', senderName: 'Eyob Getachew', message: 'Please approve my profile' },
-
-]);
-const [recipient, setRecipient] = useState('');
-const query = useQuery();
-const initialTab = query.get('tab') || 'dashboard';
-const [activeTab, setActiveTab] = useState(initialTab);
+  const [clients, setClients] = useState([]);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const query = useQuery();
+  const initialTab = query.get('tab') || 'dashboard';
+   const [userId, setUserId] = useState("");
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [notificationCount, setNotificationCount] = useState(0);
 
 
- useEffect(() => {
-  // Fetch clients on initial load
-  fetch('http://localhost:3000/admin/clients', {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
-    }
+  useEffect(() => {
+    // Fetch clients
+    fetch('http://localhost:3000/admin/clients', {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => setClients(data))
+      .catch(err => console.error('Failed to fetch clients:', err));
+
+    // Fetch counselors
+    fetch('http://localhost:3000/admin/counselors', {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => setCounselors(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to fetch counselors:', err));
+
+  }, []);
+
+
+  useEffect(() => {
+  if (activeTab === 'notifications' && userId) {
+    fetch('http://localhost:3000/notifications/mark-read', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ userId, role: 'ADMIN' }),
+    }).then(() => setNotificationCount(0)); // ✅ Reset unread count
+  }
+}, [activeTab, userId]);
+
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+
+  const fetchNotifications = () => {
+    if (!userId) return;
+    fetch(`http://localhost:3000/notifications?role=ADMIN&userId=${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setNotifications(data);
+        const unread = data.filter((n) => !n.isRead).length;
+        setNotificationCount(unread);
+      })
+      .catch((err) => console.error("Failed to fetch notifications:", err));
+  };
+
+  // Run once immediately
+  fetchNotifications();
+
+  // Poll every 10 seconds
+  const interval = setInterval(fetchNotifications, 5000);
+
+  return () => clearInterval(interval);
+}, [userId]);
+
+
+
+  useEffect(() => {
+  if (!userId) return;
+  const token = localStorage.getItem('token');
+  fetch(`http://localhost:3000/notifications?role=ADMIN&userId=${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
   })
     .then(res => res.json())
-    .then(data => setClients(data))
-    .catch(err => console.error('Failed to fetch clients:', err));
+    
+    .then(data => {
+  setNotifications(data);
+  const unread = data.filter(n => !n.isRead).length;
+  setNotificationCount(unread); // ✅ Only unread
+})
 
-  // Fetch counselors on initial load
-  fetch('http://localhost:3000/admin/counselors', {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
+    .catch(err => console.error('Failed to fetch notifications:', err));
+}, [userId]);
+
+
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    const decoded = jwtDecode<MyJwtPayload>(token);
+    setUserId(decoded.id);  // ✅ properly set userId from token
+  }
+}, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const token = localStorage.getItem('token');
+    fetch(`http://localhost:3000/notifications?role=ADMIN&userId=${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(setNotifications)
+      .catch(err => console.error('Failed to fetch notifications:', err));
+  }, [userId]);
+
+  const handleConfirmedAction = async () => {
+    const { type, counselor } = confirmAction;
+    let endpoint = '';
+    let method = 'PATCH';
+
+    if (type === 'approve') {
+      endpoint = `/admin/counselor/${counselor.id}/approve`;
+    } else if (type === 'activate' || type === 'deactivate') {
+      endpoint = `/admin/counselor/${counselor.id}/status/${type === 'activate' ? 'ACTIVE' : 'INACTIVE'}`;
     }
-  })
-    .then(res => res.json())
-    .then(data => setCounselors(Array.isArray(data) ? data : []))
-    .catch(err => console.error('Failed to fetch counselors:', err));
-}, []); // <-- remove dependency on activeTab
 
+    try {
+      await fetch(`http://localhost:3000${endpoint}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
-//handle confirmation
-const handleConfirmedAction = async () => {
-  const { type, counselor } = confirmAction;
-  let endpoint = '';
-  let method = 'PATCH';
-
-  if (type === 'approve') {
-    endpoint = `/admin/counselor/${counselor.id}/approve`;
-  } else if (type === 'activate' || type === 'deactivate') {
-    endpoint = `/admin/counselor/${counselor.id}/status/${type === 'activate' ? 'ACTIVE' : 'INACTIVE'}`;
-  }
-
-  try {
-    await fetch(`http://localhost:3000${endpoint}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    // Refresh counselors after update
-    const updated = await fetch(`http://localhost:3000/admin/counselors`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    const data = await updated.json();
-    setCounselors(Array.isArray(data) ? data : []);
-  } catch (error) {
-    console.error('Failed to update counselor status:', error);
-  } finally {
-    setConfirmAction(null);
-  }
-};
-
-
-
-  const handleSendNotification = () => {
-  if (message.trim()) {
-    setNotifications([
-      ...notifications,
-      { sender: 'admin', senderName: '', message }
-    ]);
-    setMessage('');
-    setRecipient('');
-  }
-};
+      // Refresh counselors after update
+      const updated = await fetch(`http://localhost:3000/admin/counselors`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await updated.json();
+      setCounselors(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to update counselor status:', error);
+    } finally {
+      setConfirmAction(null);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = 'http://localhost:8080/';
   };
 
-
   const stats = {
-  totalClients: clients.length,
-  approvedCounselors: counselors.filter((c) => c.isApproved).length,
-  heldSessions: 0,
-  scheduledSessions: 0,
-};
+    totalClients: clients.length,
+    approvedCounselors: counselors.filter((c) => c.isApproved).length,
+    heldSessions: 0,
+    scheduledSessions: 0,
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -122,23 +188,30 @@ const handleConfirmedAction = async () => {
             <button onClick={() => setActiveTab('clients')} className={tabStyle(activeTab, 'clients')}>Clients</button>
             <button onClick={() => setActiveTab('counselors')} className={tabStyle(activeTab, 'counselors')}>Manage Counselors</button>
             <button onClick={() => setActiveTab('posts')} className={tabStyle(activeTab, 'posts')}>Counselor Posts</button>
-            <button onClick={() => setActiveTab('notifications')} className={tabStyle(activeTab, 'notifications')}>🔔 Notifications</button>
+            <button onClick={() => setActiveTab('notifications')} className={tabStyle(activeTab, 'notifications')}>
+  🔔 Notifications
+  {notificationCount > 0 && (
+    <span className="ml-2 inline-block bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+      {notificationCount}
+    </span>
+  )}
+</button>
+
           </nav>
         </div>
-        <button onClick={() => navigate('/')} className="mt-8 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
+        <button onClick={handleLogout} className="mt-8 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
       </aside>
 
-      <main className="flex-1 p-8 mt-10 bg-gray-50  overflow-y-auto ">
+      <main className="flex-1 p-8 mt-10 bg-gray-50 overflow-y-auto">
         {activeTab === 'dashboard' && (
-          <div className=" max-w-4xl mx-auto ">
+          <div className="max-w-4xl mx-auto">
             <h1 className="text-center text-2xl font-bold text-purple-700 mb-20">Welcome Admin!</h1>
-
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-28 max-w-4xl mx-auto ">
-             <DashboardCard title="Total Clients" value={stats.totalClients} color="border-purple-600" />
-            <DashboardCard title="Approved Counselors" value={stats.approvedCounselors} color="border-purple-400" />
-            <DashboardCard title="Held Sessions" value={stats.heldSessions} color="border-yellow-400" />
-            <DashboardCard title="Scheduled Sessions" value={stats.scheduledSessions} color="border-green-500" />
-           </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-28 max-w-4xl mx-auto">
+              <DashboardCard title="Total Clients" value={stats.totalClients} color="border-purple-600" />
+              <DashboardCard title="Approved Counselors" value={stats.approvedCounselors} color="border-purple-400" />
+              <DashboardCard title="Held Sessions" value={stats.heldSessions} color="border-yellow-400" />
+              <DashboardCard title="Scheduled Sessions" value={stats.scheduledSessions} color="border-green-500" />
+            </div>
           </div>
         )}
 
@@ -153,7 +226,6 @@ const handleConfirmedAction = async () => {
                   <th className="p-3 text-left">Phone</th>
                   <th className="p-3 text-left">Gender</th>
                   <th className="p-3 text-left">Marital</th>
-                 
                 </tr>
               </thead>
               <tbody>
@@ -163,8 +235,7 @@ const handleConfirmedAction = async () => {
                     <td className="p-3">{client.email}</td>
                     <td className="p-3">{client.client?.phoneNumber || ''}</td>
                     <td className="p-3">{client.client?.gender || ''}</td>
-<td className="p-3">{client.client?.maritalStatus || ''}</td>
-
+                    <td className="p-3">{client.client?.maritalStatus || ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,73 +252,72 @@ const handleConfirmedAction = async () => {
                   <th className="p-3 text-left">Name</th>
                   <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-left">Status</th>
-                 <th className="p-3 text-left">changeStatus</th>
-<th className="p-3 text-left">Approval</th>
-<th className="p-3 text-left">View Profile</th>
-
+                  <th className="p-3 text-left">Change Status</th>
+                  <th className="p-3 text-left">Approval</th>
+                  <th className="p-3 text-left">View Profile</th>
                 </tr>
               </thead>
               <tbody>
-              {counselors.map(c => (
-  <tr key={c.id} className="border-t hover:bg-gray-50">
-    <td className="p-3">{(c.firstName || '') + ' ' + (c.lastName || '')}</td>
-    <td className="p-3">{c.email || ''}</td>
-    <td className="p-3">
-      {c.status === 'ACTIVE' ? (
-        <span className="text-green-600 font-medium">Active</span>
-      ) : (
-        <span className="text-red-600 font-medium">Inactive</span>
-      )}
-    </td>
-    <td className="p-3">
- <button
-  onClick={() =>
-    setConfirmAction({
-      type: c.status === 'ACTIVE' ? 'deactivate' : 'activate',
-      counselor: c,
-    })
-  }
-  className={`px-3 py-1 rounded text-white text-xs ${
-    c.status === 'ACTIVE'
-      ? 'bg-red-500 hover:bg-red-600'
-      : 'bg-green-500 hover:bg-green-600'
-  }`}
->
-  {c.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-</button>
-
-</td>
-<td className="p-3">
-  {!c.isApproved ? (
-   <button
-  onClick={() =>
-    setConfirmAction({
-      type: 'approve',
-      counselor: c,
-    })
-  }
-  className="px-3 py-1 rounded bg-purple-600 text-white text-xs hover:bg-purple-700"
->
-  Approve
-</button>
-
-  ) : (
-    <span className="text-sm text-purple-500 font-medium">Approved</span>
-  )}
-</td>
-<td className="p-3">
-  <button
-    onClick={() => window.location.href = `/counselor/${c.id}`}
-    className="px-3 py-1 rounded border border-purple-500 text-purple-600 hover:bg-purple-100 text-xs"
-  >
-    View Profile
-  </button>
-</td>
-
-
-  </tr>
-))}
-
+                {counselors.map(c => (
+                  <tr key={c.id} className="border-t hover:bg-gray-50">
+                    <td className="p-3">{(c.firstName || '') + ' ' + (c.lastName || '')}</td>
+                    <td className="p-3">{c.email || ''}</td>
+                    <td className="p-3">
+                      {c.status === 'ACTIVE' ? (
+                        <span className="text-green-600 font-medium">Active</span>
+                      ) : (
+                        <span className="text-red-600 font
+::contentReference[oaicite:30]{index=30}
+ 
+// Continuing from previous AdminPanel.tsx
+// ...
+                        font-medium">Inactive</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() =>
+                          setConfirmAction({
+                            type: c.status === 'ACTIVE' ? 'deactivate' : 'activate',
+                            counselor: c,
+                          })
+                        }
+                        className={`px-3 py-1 rounded text-white text-xs ${
+                          c.status === 'ACTIVE'
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-green-500 hover:bg-green-600'
+                        }`}
+                      >
+                        {c.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </td>
+                    <td className="p-3">
+                      {!c.isApproved ? (
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              type: 'approve',
+                              counselor: c,
+                            })
+                          }
+                          className="px-3 py-1 rounded bg-purple-600 text-white text-xs hover:bg-purple-700"
+                        >
+                          Approve
+                        </button>
+                      ) : (
+                        <span className="text-sm text-purple-500 font-medium">Approved</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => window.location.href = `/counselor/${c.id}`}
+                        className="px-3 py-1 rounded border border-purple-500 text-purple-600 hover:bg-purple-100 text-xs"
+                      >
+                        View Profile
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -255,101 +325,60 @@ const handleConfirmedAction = async () => {
 
         {activeTab === 'posts' && <CounselorPosts />}
 
-       {activeTab === 'notifications' && (
-  <div className="max-w-3xl mx-auto flex flex-col h-[80vh]">
-    <h2 className="text-xl font-bold text-purple-700 mb-4 text-center">Notifications</h2>
+{activeTab === 'notifications' && (
+          <div className="max-w-3xl mx-auto flex flex-col h-[80vh]">
+            <h2 className="text-xl font-bold text-purple-700 mb-4 text-center">Notifications</h2>
 
-    <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-6">
-      {notifications.map((n, i) => (
-        <div key={i} className="bg-white p-4 border rounded shadow border-purple-200">
-          <div className="text-sm text-purple-400 mb-1">
-            {n.sender === 'admin'
-              ? 'You'
-              : n.sender === 'counselor'
-              ? `Counselor ${n.senderName}`
-              : ''}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-6">
+              {notifications.length === 0 && (
+                <p className="text-center text-gray-500">No notifications found.</p>
+              )}
+              {notifications.map((n, i) => (
+                <div key={i} className="bg-white p-4 border rounded shadow border-purple-200">
+                  <div className="text-sm text-purple-400 mb-1">
+                    {n.type === 'SYSTEM'
+                      ? 'System'
+                      : n.role === 'COUNSELOR'
+                      ? `Counselor ${n.senderName || ''}`
+                      : 'Unknown Sender'}
+                  </div>
+                  <div className="text-gray-800">{n.message}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {new Date(n.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="text-gray-800">{n.message}</div>
-        </div>
-      ))}
-    </div>
-
-    {/* Notification form stays pinned below */}
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!message || !recipient) return;
-        const newNotification = {
-          sender: 'admin',
-          senderName: '',
-          message,
-        };
-        setNotifications([newNotification, ...notifications]);
-        setMessage('');
-        setRecipient('');
-      }}
-      className="mt-4 space-y-4"
-    >
-      <textarea
-        className="w-full p-3 border rounded"
-        placeholder="Write your notification..."
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        required
-      />
-
-      <select
-        className="w-full p-2 border rounded"
-        value={recipient}
-        onChange={(e) => setRecipient(e.target.value)}
-        required
-      >
-        <option value="">Select Recipient</option>
-        <option value="all_clients">All Clients</option>
-        <option value="all_counselors">All Counselors</option>
-        {counselors.map((c) => (
-          <option key={c.id} value={`counselor_${c.id}`}>
-            Counselor {c.firstName} {c.lastName}
-          </option>
-        ))}
-      </select>
-
-      <button
-        type="submit"
-        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
-      >
-        Send Notification
-      </button>
-    </form>
-  </div>
-)}
+        )}
 
       </main>
-      
-      {confirmAction && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full">
-      <h2 className="text-lg font-semibold mb-4 text-gray-800">
-        Are you sure you want to {confirmAction.type} this counselor?
-      </h2>
-      <div className="flex justify-end gap-4">
-        <button
-          onClick={() => setConfirmAction(null)}
-          className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-        >
-          No
-        </button>
-        <button
-          onClick={() => handleConfirmedAction()}
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-        >
-          Yes
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full">
+
+            <h2 className="text-lg font-semibold mb-4 text-gray-800">
+              Are you sure you want to {confirmAction.type} this counselor?
+            </h2>
+
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                No
+              </button>
+              <button
+                onClick={handleConfirmedAction}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
