@@ -28,6 +28,12 @@ import AdminPanel from './pages/Admin/adminPanel';
 import CounselorDetail from './pages/Admin/counselor.detail';
 import TermsOfUse from './pages/TermsOsUse';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import LicensedTherapist from "./pages/careers/LicensedTherapist";
+import Psychiatrist from "./pages/careers/Psychiatrist";
+import ClinicalSocialWorker from "./pages/careers/ClinicalSocialWorker";
+import Careers from "./pages/careers/index";
+
+import AdministrativeProfessional from "./pages/careers/AdministrativeProfessional";
 
 
 const queryClient = new QueryClient();
@@ -74,7 +80,12 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
             <Route path="/adminPanel" element={<AdminPanel />} />
             <Route path="/Counselor/:userId" element={<CounselorDetail />} />
-            
+            <Route path="/careers/therapist" element={<LicensedTherapist />} />
+            <Route path="/careers/psychiatrist" element={<Psychiatrist />} />
+            <Route path="/careers/social-worker" element={<ClinicalSocialWorker />} />
+            <Route path="/careers/administrative" element={<AdministrativeProfessional />} />
+            <Route path="/careers" element={<Careers />} />
+
 
 
           </Routes>

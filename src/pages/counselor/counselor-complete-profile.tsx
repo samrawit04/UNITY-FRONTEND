@@ -247,10 +247,8 @@ const ProfileForm = () => {
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-md bg-purple-100 border border-gray-300 focus:ring-2 focus:ring-purple-300 focus:outline-none"
             >
-              <option value="">Gender</option>
               <option>Male</option>
               <option>Female</option>
-              <option>Other</option>
             </select>
           </div>
 
