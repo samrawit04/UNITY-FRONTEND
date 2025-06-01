@@ -24,8 +24,12 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
-import AdminPanel from './pages/admin/adminPanel';
-import CounselorDetail from './pages/admin/counselor.detail'
+import AdminPanel from './pages/Admin/adminPanel';
+import CounselorDetail from './pages/Admin/counselor.detail';
+import TermsOfUse from './pages/TermsOsUse';
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -46,6 +50,8 @@ const App = () => (
               path="/counselor/complete-profile"
               element={<CounselorRegister />}
             />
+            <Route path="/terms" element={<TermsOfUse />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-success" element={<ResetSuccess />} />
