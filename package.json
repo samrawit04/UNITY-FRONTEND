@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-"deploy": "gh-pages -d build"
-
+    "deploy": "gh-pages -d build"
   },
   "homepage": "https://samrawit04.github.io/UNITY-FRONTEND",
   "dependencies": {
