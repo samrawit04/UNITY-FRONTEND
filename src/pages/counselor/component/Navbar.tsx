@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import  { useEffect, useState, useRef } from 'react';
@@ -21,7 +22,6 @@ const [notifications, setNotifications] = useState([]);
   const cardRef = useRef(null);
   const [userId, setUserId] = useState("");
 
-    // Fetch user and profile
     useEffect(() => {
       const fetchProfile = async () => {
         const token = localStorage.getItem("token");
@@ -213,7 +213,7 @@ const [notifications, setNotifications] = useState([]);
         </li>
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           title="Logout">
           Logout
         </li>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import NavBar from './component/Navbar';
-import {  useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { IconUser } from "@tabler/icons-react";
+import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import {
   format,
@@ -16,6 +17,9 @@ import {
   subMonths,
   addMonths,
 } from "date-fns";
+
+import { jwtDecode } from "jwt-decode";
+
 interface TimeSlot {
   id?: string;
   start: string;
@@ -34,36 +38,64 @@ interface Therapist {
   image: string;
 }
 
+interface DecodedToken {
+  id: string;
+  email: string;
+  iat: number;
+  exp: number;
+}
+interface Client {
+  userId: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  bookings: any[];
+  payments: any[];
+}
+
 const API_URL = "http://localhost:3000";
-const counselorId = "8a354908-ec2a-40bc-ad64-6f7e598b78be";
 
 const BookSession = () => {
+  const navigate = useNavigate();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTherapist, setSelectedTherapist] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
-  const navigate = useNavigate();
+  const [schedule, setSchedule] = useState<DaySchedule[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [clientData, setClientData] = useState<Client | null>(null);
+
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    amount: "",
+  });
+
+  const public_key = "CHAPUBK_TEST-wT13hhBqi9jnI7GCJunUAQNGHb2HMYC3";
 
   const params = useParams<{ yearMonth?: string }>();
 
   const initialMonth = params.yearMonth
     ? parse(params.yearMonth, "yyyy-MM", new Date())
     : new Date();
-
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(
     startOfMonth(initialMonth),
   );
-  const [schedule, setSchedule] = useState<DaySchedule[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [therapists, setTherapists] = useState<Therapist[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const today = startOfToday();
-
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+  // useEffect(() => {
+  //   setTxRef(uuidv4()); // generate unique tx_ref when component mounts
+  // }, []);
+
   useEffect(() => {
     axios
       .get("http://localhost:3000/counselors")
@@ -75,6 +107,41 @@ const BookSession = () => {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const fetchClientData = async () => {
+      try {
+        const token = localStorage.getItem("token"); // Adjust if your key is different
+        if (!token) throw new Error("No token found");
+
+        const decoded: DecodedToken = jwtDecode(token);
+        if (!decoded?.id) throw new Error("Invalid token");
+
+        const response = await axios.get(`${API_URL}/clients/${decoded.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        setClientData(response.data);
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClientData();
+  }, []);
+
+  // useEffect(() => {
+  //   if (selectedTherapist) {
+  //     setFname(selectedTherapist.firstName || "");
+  //     setLname(selectedTherapist.lastName || "");
+  //     setEmail(selectedTherapist.email || "");
+  //     setClientId(selectedTherapist.id || "");
+  //   }
+  // }, [selectedTherapist]);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -117,6 +184,105 @@ const BookSession = () => {
 
     fetchSchedule();
   }, [selectedTherapist, currentMonth]);
+  const handleNextStep = async () => {
+    if (!selectedSlot || !selectedSlot.id) {
+      alert("Please select a valid time slot.");
+      return;
+    }
+
+    // scheduleId is a string (UUID), no conversion to number
+    const scheduleId = selectedSlot.id;
+
+    if (!selectedTherapist?.id) {
+      alert("Please select a therapist.");
+      return;
+    }
+
+    if (!clientData?.user.id) {
+      console.log(clientData);
+      alert("Client information missing. Please log in again.");
+      return;
+    }
+
+    // try {
+    //   const response = await fetch("http://localhost:3000/api/bookings", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       scheduleId: scheduleId, // send UUID string directly
+    //       clientId: "f35a4d7c-979f-493d-b032-aa91a1b984eb",
+    //     }),
+    //   });
+
+    //   const data = await response.json();
+
+    //   if (!response.ok) {
+    //     alert(`Failed to book: ${data.message || JSON.stringify(data)}`);
+    //     return;
+    //   }
+
+    //   setCurrentStep(currentStep + 1);
+    // } catch (err: any) {
+    //   alert("Error booking appointment: " + err.message);
+    // }
+    setCurrentStep(currentStep + 1);
+  };
+  const handleChangee = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmitt = async (e) => {
+    e.preventDefault();
+
+    if (!clientData?.user?.email) {
+      alert("Client email not found");
+      return;
+    }
+
+    if (!selectedSlot?.id) {
+      alert("Please select a valid schedule slot");
+      return;
+    }
+
+    if (!selectedTherapist?.id) {
+      alert("Please select a valid counselor");
+      return;
+    }
+
+    const transactionReference = `tx-${Date.now()}`;
+    const payload = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: clientData.user.email,
+      amount: 1000,
+      clientId: clientData.user.id,
+      counselorId: selectedTherapist?.id,
+      scheduleId: selectedSlot.id,
+      transactionReference,
+    };
+
+    try {
+      const res = await fetch("http://localhost:3000/payment/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.chapaRedirectUrl) {
+        window.location.href = data.chapaRedirectUrl;
+      } else {
+        alert(data.message || "Payment initialization failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while initializing payment");
+    }
+  };
 
   const getDateSchedule = (date: Date): TimeSlot[] => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -127,48 +293,15 @@ const BookSession = () => {
   const handleDateClick = (date: Date) => {
     if (isBefore(date, today)) return;
     setSelectedDate(date);
-    setSelectedSlot(null); // Reset selected time slot when date changes
+    setSelectedSlot(null);
   };
 
-  // Navigate to prev month page
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => subMonths(prev, 1));
   };
 
-  // Navigate to next month page
   const handleNextMonth = () => {
     setCurrentMonth((prev) => addMonths(prev, 1));
-  };
-
-  const handleBookSlot = async () => {
-    if (!selectedDate || !selectedSlot) return;
-
-    try {
-      await axios.post(`${API_URL}/api/bookings`, {
-        scheduleId: selectedSlot.id,
-        counselorId,
-      });
-
-      alert("Booking confirmed!");
-
-      // Remove the booked slot from schedule state
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      setSchedule((prevSchedule) =>
-        prevSchedule.map((day) =>
-          day.date === dateStr
-            ? {
-                ...day,
-                slots: day.slots.filter((slot) => slot.id !== selectedSlot.id),
-              }
-            : day,
-        ),
-      );
-
-      setSelectedSlot(null);
-    } catch (err) {
-      console.error("Booking failed", err);
-      alert("Failed to book the slot.");
-    }
   };
 
   const steps = [
@@ -176,13 +309,43 @@ const BookSession = () => {
     { id: 2, title: "Therapist Availability" },
     { id: 3, title: "Summary" },
     { id: 4, title: "Payment" },
-    { id: 5, title: "Confirmation" }, // Added a title for the confirmation step
+    { id: 5, title: "Confirmation" },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <NavBar />
+      <nav className="bg-white shadow-sm py-4 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link to="/" className="flex items-center">
+            <img
+              src="/src/asset/logo.png"
+              alt="Unity Logo"
+              className="h-8 w-auto"
+            />
+          </Link>
+          <div className="flex items-center space-x-6">
+            <Link
+              to="/"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Home
+            </Link>
+            <Link
+              to="/counselor-posts"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Counselor Posts
+            </Link>
+            <Link
+              to="/logout"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Logout
+            </Link>
+            <Link to="/profile" className="text-[#4b2a75] hover:text-[#3a2057]">
+              <IconUser size={24} />
+            </Link>
+          </div>
+        </div>
+      </nav>
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-2xl p-8 shadow-sm">
@@ -447,9 +610,7 @@ const BookSession = () => {
                   Back
                 </button>
                 <button
-                  onClick={() =>
-                    selectedSlot && setCurrentStep(currentStep + 1)
-                  }
+                  onClick={handleNextStep}
                   disabled={!selectedSlot}
                   className={`bg-[#4b2a75] text-white px-6 py-2 rounded-md transition-colors ${
                     !selectedSlot
@@ -513,7 +674,7 @@ const BookSession = () => {
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-gray-600">Session Fee</span>
-                      <span className="font-medium">10$</span>
+                      <span className="font-medium">1000birr</span>
                     </div>
                   </div>
                 </div>
@@ -524,6 +685,7 @@ const BookSession = () => {
                     className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
                     Back
                   </button>
+
                   <button
                     onClick={() => setCurrentStep(currentStep + 1)}
                     className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
@@ -549,96 +711,77 @@ const BookSession = () => {
                     <h4 className="font-medium text-[#4b2a75]">
                       {selectedTherapist?.name}
                     </h4>
-                    <p className="text-gray-600">
-                      {selectedTherapist?.specialization}
-                    </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
                     <span className="text-gray-600">Total Amount</span>
                     <span className="font-medium text-[#4b2a75]">
-                      {selectedTherapist?.rate}
+                      1000 birr
                     </span>
                   </div>
                 </div>
               </div>
 
-              <form className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="cardName"
-                    className="block text-sm font-medium text-gray-700 mb-1">
-                    Name on Card
-                  </label>
-                  <input
-                    type="text"
-                    id="cardName"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="cardNumber"
-                    className="block text-sm font-medium text-gray-700 mb-1">
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    id="cardNumber"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                    placeholder="1234 5678 9012 3456"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="expiryDate"
-                      className="block text-sm font-medium text-gray-700 mb-1">
-                      Expiry Date
-                    </label>
+              <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+                <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+                    Client Payment
+                  </h2>
+                  <form onSubmit={handleSubmitt}>
                     <input
+                      name="firstName"
                       type="text"
-                      id="expiryDate"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                      placeholder="MM/YY"
+                      placeholder="First Name"
+                      value={formData.firstName}
+                      onChange={handleChangee}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       required
                     />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="cvv"
-                      className="block text-sm font-medium text-gray-700 mb-1">
-                      CVV
-                    </label>
+                    <br />
                     <input
+                      name="lastName"
                       type="text"
-                      id="cvv"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4b2a75]"
-                      placeholder="123"
+                      placeholder="Last Name"
+                      value={formData.lastName}
+                      onChange={handleChangee}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       required
                     />
-                  </div>
+                    <br />
+                    <input
+                      name="email"
+                      type="email"
+                      placeholder="Email"
+                      value={clientData?.user.email || " "}
+                      readOnly
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    />
+                    <br />
+                    <input
+                      name="amount"
+                      type="number"
+                      placeholder="Amount"
+                      value={1000}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      readOnly
+                    />
+                    <br />
+                    <button
+                      type="submit"
+                      className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
+                      Pay with Chapa
+                    </button>
+                  </form>
                 </div>
-              </form>
+              </div>
 
               <div className="mt-8 flex justify-between">
                 <button
                   onClick={() => setCurrentStep(currentStep - 1)}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
                   Back
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentStep(currentStep + 1);
-                  }}
-                  className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
-                  Complete Payment
                 </button>
               </div>
             </div>
