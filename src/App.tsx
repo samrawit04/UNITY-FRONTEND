@@ -26,6 +26,8 @@ import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
 import AdminPanel from "./pages/admin/adminPanel";
 import CounselorDetail from "./pages/admin/counselor.detail";
+import PaymentSuccess from "./pages/client/paymentSuccess";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -71,6 +73,8 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
             <Route path="/adminPanel" element={<AdminPanel />} />
             <Route path="/Counselor/:userId" element={<CounselorDetail />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            PaymentSuccess
           </Routes>
         </div>
       </BrowserRouter>

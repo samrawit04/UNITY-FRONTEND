@@ -4,32 +4,32 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const Navbar = () => {
-    interface MyJwtPayload {
-      id: string;
-      email: string;
-      [key: string]: any;
-    }
-    
-    
-      const navigate = useNavigate();
-      const [showNotifications, setShowNotifications] = useState(false);
-      const [messageTo, setMessageTo] = useState("all");
-      const [messageText, setMessageText] = useState("");
-    const [loading, setLoading] = useState(true);
-    
-    const [profile, setProfile] = useState(null);
-    useEffect(() => {
-      const fetchProfile = async () => {
-        const token = localStorage.getItem("token");
-        
-    
-        if (!token) return;
-    
-        try {
-         const decoded = jwtDecode<MyJwtPayload>(token);
-    const userId = decoded.id; // ✅ Now this works!
-    
-          const res = await axios.get(`http://localhost:3000/counselors/profile/${userId}`, {
+  interface MyJwtPayload {
+    id: string;
+    email: string;
+    [key: string]: any;
+  }
+
+  const navigate = useNavigate();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [messageTo, setMessageTo] = useState("all");
+  const [messageText, setMessageText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [profile, setProfile] = useState(null);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) return;
+
+      try {
+        const decoded = jwtDecode<MyJwtPayload>(token);
+        const userId = decoded.id; // ✅ Now this works!
+
+        const res = await axios.get(
+          `http://localhost:3000/counselors/profile/${userId}`,
+          {
             headers: { Authorization: `Bearer ${token}` },
           },
         );
@@ -250,7 +250,7 @@ const Navbar = () => {
         </li>
         <li
           className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           title="Logout">
           Logout
         </li>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import NavBar from './component/Navbar';
-import {  useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { IconUser } from "@tabler/icons-react";
+import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import {
   format,
@@ -16,7 +17,9 @@ import {
   subMonths,
   addMonths,
 } from "date-fns";
-import Pay from "./pay";
+
+import { jwtDecode } from "jwt-decode";
+
 interface TimeSlot {
   id?: string;
   start: string;
@@ -35,23 +38,25 @@ interface Therapist {
   image: string;
 }
 
-interface Client {
+interface DecodedToken {
   id: string;
-  firstName: string;
-  lastName: string;
   email: string;
+  iat: number;
+  exp: number;
+}
+interface Client {
+  userId: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  bookings: any[];
+  payments: any[];
 }
 
 const API_URL = "http://localhost:3000";
-const amount = "1000";
-
-function parseJwt(token: string) {
-  try {
-    return JSON.parse(atob(token.split(".")[1]));
-  } catch {
-    return null;
-  }
-}
 
 const BookSession = () => {
   const navigate = useNavigate();
@@ -65,12 +70,13 @@ const BookSession = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [clientData, setClientData] = useState<Client | null>(null);
 
-  const [fname, setFname] = useState("");
-  const [lname, setLname] = useState("");
-  const [email, setEmail] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    amount: "",
+  });
 
-  const [clientId, setClientId] = useState("");
-  const tx_ref = `tx-${Date.now()}`;
   const public_key = "CHAPUBK_TEST-wT13hhBqi9jnI7GCJunUAQNGHb2HMYC3";
 
   const params = useParams<{ yearMonth?: string }>();
@@ -86,6 +92,9 @@ const BookSession = () => {
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+  // useEffect(() => {
+  //   setTxRef(uuidv4()); // generate unique tx_ref when component mounts
+  // }, []);
 
   useEffect(() => {
     axios
@@ -102,17 +111,18 @@ const BookSession = () => {
   useEffect(() => {
     const fetchClientData = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("No token found");
-        }
+        const token = localStorage.getItem("token"); // Adjust if your key is different
+        if (!token) throw new Error("No token found");
 
-        const decoded = parseJwt(token);
-        if (!decoded || !decoded.id) {
-          throw new Error("Invalid token");
-        }
+        const decoded: DecodedToken = jwtDecode(token);
+        if (!decoded?.id) throw new Error("Invalid token");
 
-        const response = await axios.get(`${API_URL}/clients/${decoded.id}`);
+        const response = await axios.get(`${API_URL}/clients/${decoded.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         setClientData(response.data);
       } catch (error) {
         console.error("Error fetching client data:", error);
@@ -188,31 +198,89 @@ const BookSession = () => {
       return;
     }
 
-    if (!clientData.id) {
+    if (!clientData?.user.id) {
+      console.log(clientData);
       alert("Client information missing. Please log in again.");
       return;
     }
 
+    // try {
+    //   const response = await fetch("http://localhost:3000/api/bookings", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       scheduleId: scheduleId, // send UUID string directly
+    //       clientId: "f35a4d7c-979f-493d-b032-aa91a1b984eb",
+    //     }),
+    //   });
+
+    //   const data = await response.json();
+
+    //   if (!response.ok) {
+    //     alert(`Failed to book: ${data.message || JSON.stringify(data)}`);
+    //     return;
+    //   }
+
+    //   setCurrentStep(currentStep + 1);
+    // } catch (err: any) {
+    //   alert("Error booking appointment: " + err.message);
+    // }
+    setCurrentStep(currentStep + 1);
+  };
+  const handleChangee = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmitt = async (e) => {
+    e.preventDefault();
+
+    if (!clientData?.user?.email) {
+      alert("Client email not found");
+      return;
+    }
+
+    if (!selectedSlot?.id) {
+      alert("Please select a valid schedule slot");
+      return;
+    }
+
+    if (!selectedTherapist?.id) {
+      alert("Please select a valid counselor");
+      return;
+    }
+
+    const transactionReference = `tx-${Date.now()}`;
+    const payload = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: clientData.user.email,
+      amount: 1000,
+      clientId: clientData.user.id,
+      counselorId: selectedTherapist?.id,
+      scheduleId: selectedSlot.id,
+      transactionReference,
+    };
+
     try {
-      const response = await fetch("http://localhost:3000/api/bookings", {
+      const res = await fetch("http://localhost:3000/payment/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scheduleId: scheduleId, // send UUID string directly
-          clientId: clientData.id,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        alert(`Failed to book: ${data.message || JSON.stringify(data)}`);
-        return;
+      if (res.ok && data.chapaRedirectUrl) {
+        window.location.href = data.chapaRedirectUrl;
+      } else {
+        alert(data.message || "Payment initialization failed");
       }
-
-      setCurrentStep(currentStep + 1);
-    } catch (err: any) {
-      alert("Error booking appointment: " + err.message);
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while initializing payment");
     }
   };
 
@@ -247,7 +315,37 @@ const BookSession = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <NavBar />
+      <nav className="bg-white shadow-sm py-4 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link to="/" className="flex items-center">
+            <img
+              src="/src/asset/logo.png"
+              alt="Unity Logo"
+              className="h-8 w-auto"
+            />
+          </Link>
+          <div className="flex items-center space-x-6">
+            <Link
+              to="/"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Home
+            </Link>
+            <Link
+              to="/counselor-posts"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Counselor Posts
+            </Link>
+            <Link
+              to="/logout"
+              className="text-[#4b2a75] hover:text-[#3a2057] font-medium">
+              Logout
+            </Link>
+            <Link to="/profile" className="text-[#4b2a75] hover:text-[#3a2057]">
+              <IconUser size={24} />
+            </Link>
+          </div>
+        </div>
+      </nav>
 
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-2xl p-8 shadow-sm">
@@ -576,7 +674,7 @@ const BookSession = () => {
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-gray-600">Session Fee</span>
-                      <span className="font-medium">10$</span>
+                      <span className="font-medium">1000birr</span>
                     </div>
                   </div>
                 </div>
@@ -618,7 +716,9 @@ const BookSession = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-[#e0d5f5]">
                     <span className="text-gray-600">Total Amount</span>
-                    <span className="font-medium text-[#4b2a75]">{amount}</span>
+                    <span className="font-medium text-[#4b2a75]">
+                      1000 birr
+                    </span>
                   </div>
                 </div>
               </div>
@@ -628,65 +728,51 @@ const BookSession = () => {
                   <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
                     Client Payment
                   </h2>
-                  <form className="space-y-4">
-                    <div>
-                      <label
-                        htmlFor="fname"
-                        className="block text-sm font-medium text-gray-700">
-                        First Name
-                      </label>
-                      <input
-                        id="fname"
-                        type="text"
-                        value={fname}
-                        onChange={(e) => setFname(e.target.value)}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="John"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="lname"
-                        className="block text-sm font-medium text-gray-700">
-                        Last Name
-                      </label>
-                      <input
-                        id="lname"
-                        type="text"
-                        value={lname}
-                        onChange={(e) => setLname(e.target.value)}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Doe"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="email"
-                        className="block text-sm font-medium text-gray-700">
-                        Email
-                      </label>
-                      <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="john.doe@example.com"
-                        required
-                      />
-                    </div>
-                    <div className="pt-4">
-                      <Pay
-                        fname={fname}
-                        lname={lname}
-                        amount={amount}
-                        tx_ref={tx_ref}
-                        public_key={public_key}
-                        clientId={clientId}
-                      />
-                    </div>
+                  <form onSubmit={handleSubmitt}>
+                    <input
+                      name="firstName"
+                      type="text"
+                      placeholder="First Name"
+                      value={formData.firstName}
+                      onChange={handleChangee}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    />
+                    <br />
+                    <input
+                      name="lastName"
+                      type="text"
+                      placeholder="Last Name"
+                      value={formData.lastName}
+                      onChange={handleChangee}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    />
+                    <br />
+                    <input
+                      name="email"
+                      type="email"
+                      placeholder="Email"
+                      value={clientData?.user.email || " "}
+                      readOnly
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    />
+                    <br />
+                    <input
+                      name="amount"
+                      type="number"
+                      placeholder="Amount"
+                      value={1000}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      readOnly
+                    />
+                    <br />
+                    <button
+                      type="submit"
+                      className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
+                      Pay with Chapa
+                    </button>
                   </form>
                 </div>
               </div>
@@ -696,13 +782,6 @@ const BookSession = () => {
                   onClick={() => setCurrentStep(currentStep - 1)}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors">
                   Back
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentStep(currentStep + 1);
-                  }}
-                  className="bg-[#4b2a75] text-white px-6 py-2 rounded-md hover:bg-[#3a2057] transition-colors">
-                  Next
                 </button>
               </div>
             </div>

@@ -5,7 +5,7 @@ import { jwtDecode } from "jwt-decode";
 import Navbar from "./component/Navbar";
 import Rating from "react-rating-stars-component";
 
-export default function CounselorDashboard() {
+export default function ClientDashboard() {
   interface MyJwtPayload {
     id: string;
     email: string;
@@ -13,7 +13,6 @@ export default function CounselorDashboard() {
   }
 
   const navigate = useNavigate();
-  const upcomingScrollRef = useRef(null);
   const counselorScrollRef = useRef(null);
 
   const [profile, setProfile] = useState(null);
@@ -28,30 +27,48 @@ export default function CounselorDashboard() {
   const [ratings, setRatings] = useState({});
   const [formError, setFormError] = useState("");
 
+  const [sessions, setSessions] = useState([]);
+  const upcomingScrollRef = useRef(null);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:3000/api/clientbooking/f35a4d7c-979f-493d-b032-aa91a1b984eb",
+        );
+        setSessions(response.data);
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+      }
+    };
+
+    fetchSessions();
+  }, []);
+
   // --- Fetch Client Profile ---
   useEffect(() => {
-  const fetchProfile = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
 
-    // Add a slight delay (500ms) to ensure everything is ready after sign-up
-    await new Promise((res) => setTimeout(res, 500));
+      // Add a slight delay (500ms) to ensure everything is ready after sign-up
+      await new Promise((res) => setTimeout(res, 500));
 
-    try {
-      const decoded = jwtDecode<MyJwtPayload>(token);
-      const res = await axios.get(
-        `http://localhost:3000/clients/profile/${decoded.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setProfile(res.data);
-      setClientId(res.data.user.id);
-    } catch (err) {
-      console.error("Failed to fetch profile", err);
-    }
-  };
+      try {
+        const decoded = jwtDecode<MyJwtPayload>(token);
+        const res = await axios.get(
+          `http://localhost:3000/clients/profile/${decoded.id}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        setProfile(res.data);
+        setClientId(res.data.user.id);
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      }
+    };
 
-  fetchProfile();
-}, []);
+    fetchProfile();
+  }, []);
 
   // --- Fetch Counselors ---
   useEffect(() => {
@@ -73,7 +90,7 @@ export default function CounselorDashboard() {
     const fetchReviews = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:3000/reviews/client/${clientId}`
+          `http://localhost:3000/reviews/client/${clientId}`,
         );
         const ratingsMap = {};
         res.data.forEach((review) => {
@@ -94,7 +111,9 @@ export default function CounselorDashboard() {
       const el = ref.current;
       if (!el) return;
 
-      let isDown = false, startX, scrollLeft;
+      let isDown = false,
+        startX,
+        scrollLeft;
       const onMouseDown = (e) => {
         isDown = true;
         el.classList.add("cursor-grabbing");
@@ -170,33 +189,45 @@ export default function CounselorDashboard() {
           </h1>
           <button
             onClick={() => navigate("/book-session")}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg"
-          >
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg">
             Book Session
           </button>
         </section>
 
         {/* Upcoming Sessions */}
         <section className="mb-7 ml-30">
-          <h4 className="text-2xl font-medium text-center mb-4 text-gray-500" >Your  Sessions</h4>
+          <h4 className="text-2xl font-medium text-center mb-4 text-gray-500">
+            Your Sessions
+          </h4>
           <div
             ref={upcomingScrollRef}
-            className="flex space-x-6 overflow-x-auto no-scrollbar cursor-grab  "
-          >
-            {[
-              "Pre-Marital Guidance Session",
-              "Conflict Resolution",
-              "Pre-Marital Guidance Session",
-              "Conflict Resolution",
-            ].map((title, idx) => (
+            className="flex space-x-6 overflow-x-auto no-scrollbar cursor-grab">
+            {sessions.map((session, idx) => (
               <div
                 key={idx}
-                className="min-w-[250px] bg-white rounded-lg p-5 border text-center shadow-sm"
-              >
-                <div className="font-semibold mb-2">{title}</div>
-                <div className="text-gray-600">Date: 12/03/2018</div>
-                <div className="text-gray-600">Time: 2:00pm LT</div>
-                <div className="text-gray-600">Counselor: Lidiya Fikir</div>
+                className="min-w-[250px] bg-white rounded-lg p-5 border text-center shadow-sm cursor-pointer">
+                <div
+                  className="font-semibold mb-2"
+                  onClick={() => {
+                    if (session.zoomJoinUrl) {
+                      window.open(session.zoomJoinUrl, "_blank"); // open in a new tab
+                    } else {
+                      alert("No Zoom link available for this session.");
+                    }
+                  }}>
+                  join session
+                </div>
+                <div className="text-gray-600">Date: {session.date}</div>
+                <div className="text-gray-600">Time: {session.startTime}</div>
+                {/* <div className="text-gray-600">
+                  Counselor: {session.counselor}
+                </div> */}
+
+                <button
+                  className="mt-2 px-3 py-1 bg-purple-400 text-white rounded shadow hover:bg-purple-700 transition duration-200"
+                 >
+                  Reschedule
+                </button>
               </div>
             ))}
           </div>
@@ -204,22 +235,25 @@ export default function CounselorDashboard() {
 
         {/* Counselor Section */}
         <section className="mb-12 ">
-          <h2 className="text-2xl font-medium text-center mb-4 text-gray-500">Your Counselors</h2>
+          <h2 className="text-2xl font-medium text-center mb-4 text-gray-500">
+            Your Counselors
+          </h2>
           <div
             ref={counselorScrollRef}
-            className="flex space-x-6 overflow-x-auto no-scrollbar px-4 ml-32"
-          >
+            className="flex space-x-6 overflow-x-auto no-scrollbar px-4 ml-32">
             {counselors.map((counselor, idx) => {
-              const fullName = `${counselor.firstName ?? "Unknown"} ${counselor.lastName ?? ""}`.trim();
+              const fullName = `${counselor.firstName ?? "Unknown"} ${
+                counselor.lastName ?? ""
+              }`.trim();
               const counselorId = counselor.id;
               const profilePic = counselor.image;
-              const initial = counselor.firstName?.charAt(0).toUpperCase() || "?";
+              const initial =
+                counselor.firstName?.charAt(0).toUpperCase() || "?";
 
               return (
                 <div
                   key={counselorId ?? idx}
-                  className="min-w-[250px] bg-white rounded-lg p-4 border shadow-sm flex flex-col items-center"
-                >
+                  className="min-w-[250px] bg-white rounded-lg p-4 border shadow-sm flex flex-col items-center">
                   {profilePic ? (
                     <img
                       src={`http://localhost:3000/uploads/profile-pictures/${profilePic}`}
@@ -232,7 +266,9 @@ export default function CounselorDashboard() {
                     </div>
                   )}
 
-                  <div className="font-semibold mb-1 text-gray-800">{fullName}</div>
+                  <div className="font-semibold mb-1 text-gray-800">
+                    {fullName}
+                  </div>
 
                   {rated[counselorId] ? (
                     <Rating
@@ -250,8 +286,7 @@ export default function CounselorDashboard() {
                         setSelectedCounselor(counselor);
                         setThankYou(false);
                         setFormError("");
-                      }}
-                    >
+                      }}>
                       Rate
                     </button>
                   )}
@@ -271,8 +306,7 @@ export default function CounselorDashboard() {
               onClick={() => {
                 setModalOpen(false);
                 setSelectedCounselor(null);
-              }}
-            >
+              }}>
               ✕
             </button>
 
@@ -311,15 +345,18 @@ export default function CounselorDashboard() {
                 />
                 <button
                   className="mt-4 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
-                  onClick={submitReview}
-                >
+                  onClick={submitReview}>
                   Submit Review
                 </button>
               </>
             ) : (
               <div className="text-center py-10">
-                <h3 className="text-xl font-semibold mb-2 text-green-600">Thank you!</h3>
-                <p className="text-sm text-gray-600">Your review has been submitted.</p>
+                <h3 className="text-xl font-semibold mb-2 text-green-600">
+                  Thank you!
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Your review has been submitted.
+                </p>
               </div>
             )}
           </div>
