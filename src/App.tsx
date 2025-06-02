@@ -24,17 +24,17 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
-import AdminPanel from './pages/Admin/adminPanel';
-import CounselorDetail from './pages/Admin/counselor.detail';
-import TermsOfUse from './pages/TermsOsUse';
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import LicensedTherapist from "./pages/careers/LicensedTherapist";
-import Psychiatrist from "./pages/careers/Psychiatrist";
-import ClinicalSocialWorker from "./pages/careers/ClinicalSocialWorker";
-import Careers from "./pages/careers/index";
 
+import AdminPanel from "./pages/admin/adminPanel";
+import CounselorDetail from "./pages/admin/counselor.detail";
+import PaymentSuccess from "./pages/client/paymentSuccess";
 import AdministrativeProfessional from "./pages/careers/AdministrativeProfessional";
-
+import Careers from "./pages/careers";
+import ClinicalSocialWorker from "./pages/careers/ClinicalSocialWorker";
+import Psychiatrist from "./pages/careers/Psychiatrist";
+import LicensedTherapist from "./pages/careers/LicensedTherapist";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOsUse";
 
 const queryClient = new QueryClient();
 
@@ -63,7 +63,10 @@ const App = () => (
             <Route path="/reset-success" element={<ResetSuccess />} />
             <Route path="/reset-form" element={<ResetPasswordForm />} />
             <Route path="/verify-email" element={<EmailVerification />} />{" "}
-            <Route path="/client-complete-profile" element={<ClientCompleteProfile />} />
+            <Route
+              path="/client-complete-profile"
+              element={<ClientCompleteProfile />}
+            />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
             <Route path="/counselor-posts" element={<CounselorPosts />} />
             <Route
@@ -80,14 +83,19 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
             <Route path="/adminPanel" element={<AdminPanel />} />
             <Route path="/Counselor/:userId" element={<CounselorDetail />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            PaymentSuccess
             <Route path="/careers/therapist" element={<LicensedTherapist />} />
             <Route path="/careers/psychiatrist" element={<Psychiatrist />} />
-            <Route path="/careers/social-worker" element={<ClinicalSocialWorker />} />
-            <Route path="/careers/administrative" element={<AdministrativeProfessional />} />
+            <Route
+              path="/careers/social-worker"
+              element={<ClinicalSocialWorker />}
+            />
+            <Route
+              path="/careers/administrative"
+              element={<AdministrativeProfessional />}
+            />
             <Route path="/careers" element={<Careers />} />
-
-
-
           </Routes>
         </div>
       </BrowserRouter>
