@@ -24,9 +24,17 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
+
 import AdminPanel from "./pages/admin/adminPanel";
 import CounselorDetail from "./pages/admin/counselor.detail";
 import PaymentSuccess from "./pages/client/paymentSuccess";
+import AdministrativeProfessional from "./pages/careers/AdministrativeProfessional";
+import Careers from "./pages/careers";
+import ClinicalSocialWorker from "./pages/careers/ClinicalSocialWorker";
+import Psychiatrist from "./pages/careers/Psychiatrist";
+import LicensedTherapist from "./pages/careers/LicensedTherapist";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOsUse";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +56,8 @@ const App = () => (
               path="/counselor/complete-profile"
               element={<CounselorRegister />}
             />
+            <Route path="/terms" element={<TermsOfUse />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-success" element={<ResetSuccess />} />
@@ -75,6 +85,17 @@ const App = () => (
             <Route path="/Counselor/:userId" element={<CounselorDetail />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             PaymentSuccess
+            <Route path="/careers/therapist" element={<LicensedTherapist />} />
+            <Route path="/careers/psychiatrist" element={<Psychiatrist />} />
+            <Route
+              path="/careers/social-worker"
+              element={<ClinicalSocialWorker />}
+            />
+            <Route
+              path="/careers/administrative"
+              element={<AdministrativeProfessional />}
+            />
+            <Route path="/careers" element={<Careers />} />
           </Routes>
         </div>
       </BrowserRouter>

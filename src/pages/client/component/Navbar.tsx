@@ -1,204 +1,192 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import  { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import defaultUser from '../../../asset/userDefault.png';
 
 const Navbar = () => {
-    interface MyJwtPayload {
-      id: string;
-      email: string;
-      [key: string]: any;
-    }
-    
-      const navigate = useNavigate();
-      const [showNotifications, setShowNotifications] = useState(false);
-    const [loading, setLoading] = useState(true);
-    
-    const [profile, setProfile] = useState(null);
-    useEffect(() => {
-      const fetchProfile = async () => {
-        const token = localStorage.getItem("token");       
-  
-        if (!token) return;
-    
-        try {
-         const decoded = jwtDecode<MyJwtPayload>(token);
-    const userId = decoded.id; // ✅ Now this works!
-       console.log(userId);
-          const res = await axios.get(`http://localhost:3000/clients/profile/${userId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-          
-        );
-console.log("Fetched profile:", res.data); // ⬅️ Add this
-        setProfile(res.data);
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  interface MyJwtPayload {
+    id: string;
+    email: string;
+    [key: string]: any;
+  }
 
-    fetchProfile();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const cardRef = useRef(null);
+  const [userId, setUserId] = useState("");
+
+  // Fetch user and profile
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const decoded = jwtDecode<MyJwtPayload>(token);
+    const uid = decoded.id;
+    setUserId(uid);
+
+    axios
+      .get(`http://localhost:3000/clients/profile/${uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then(res => setProfile(res.data))
+      .catch(err => console.error("Failed to fetch profile", err));
   }, []);
 
-  // Sample notifications
-  const notifications = [
-    {
-      id: 1,
-      text: "hello abebe, here is your session link join and build a healthy relationship. https://www.figma.com/design/...",
-    },
-    {
-      id: 2,
-      text: "New Session Booked: Client Melos has scheduled a session for April 6 at 2:00 PM.",
-    },
-    {
-      id: 3,
-      text: "You have a session with Counselor Helen tomorrow at 10:00 AM.",
-    },
-    {
-      id: 4,
-      text: "lorem ipsum",
-    },
-    {
-      id: 5,
-      text: "hello , counselor you have registered successfully!!",
-    },
-  ];
+  // Fetch notifications (initial + polling)
+ useEffect(() => {
+  if (!userId) return;
+  const token = localStorage.getItem("token");
 
-  // Sample clients for selection and display
-  const clients = [
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Abebe Kebede",
-    "Melos Werkuk",
-    "Melos Werkuk",
-    "Melos Werkuk",
-    "Helen Tesfaye",
-    "Sara Alemu",
-    "Daniel Bekele",
-  ];
+  const fetchAllNotifications = async () => {
+    try {
+      const res = await fetch(`http://localhost:3000/notifications?role=CLIENT&userId=${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const all = await res.json();
+      setNotifications(all);
 
-  // Notification Bell component
+      const unread = all.filter(n => !n.isRead);
+      setNotificationCount(unread.length); // ✅ Only unread count
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  fetchAllNotifications();
+
+  const interval = setInterval(fetchAllNotifications, 5000); // poll every 10s
+  return () => clearInterval(interval);
+}, [userId]);
+
+
+  // Mark as read when opened
+ useEffect(() => {
+  if (!showNotifications || notificationCount === 0) return;
+
+  const markAsRead = async () => {
+    try {
+      await fetch(`http://localhost:3000/notifications/mark-read`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ userId, role: "CLIENT" }),
+      });
+
+      setNotificationCount(0); // ✅ Clear after marking
+      // Optional: also update the notification list to reflect isRead = true
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true }))
+      );
+    } catch (err) {
+      console.error("Failed to mark notifications as read", err);
+    }
+  };
+
+  markAsRead();
+}, [showNotifications]);
+
+
+  // Close notification card on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  
+  // Notification Bell
   function NotificationBell({ onClick }) {
     return (
-      <button
-        onClick={onClick}
-        className="relative focus:outline-none"
-        aria-label="Show notifications"
-        title="Notifications">
+      <button onClick={onClick} className="relative focus:outline-none">
         <svg
           className="w-7 h-7 text-gray-700 hover:text-purple-700 transition"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
-          viewBox="0 0 24 24">
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
+        {notificationCount > 0 && (
+          <span className="absolute top-0 right-0 w-4 h-4 bg-purple-500 text-white text-xs rounded-full flex items-center justify-center">
+            {notificationCount}
+          </span>
+        )}
       </button>
     );
   }
 
+ function NotificationCard({ show }) {
+  if (!show) return null;
 
-  // User Icon component
-  function UserIcon({ onClick }) {
-    return (
-      <img
-        src="../../../asset/userDefault.png"
-        alt="User Profile"
-        className="w-10 h-10 rounded-full border cursor-pointer hover:ring-2 hover:ring-purple-600 transition"
-        onClick={onClick}
-        title="Go to Register Counselor"
-      />
-    );
-  }
-
-  // Notification Card with message field and recipient select
-  function NotificationCard({ show }) {
-    if (!show) return null;
-
-
-    return (
-      <div className="absolute right-8 top-16 w-96 bg-white rounded-xl shadow-lg p-5 z-50 border border-gray-200 flex flex-col">
-        <h2 className="font-semibold text-lg mb-3 flex items-center gap-2">
-          Notifications{" "}
-          <span role="img" aria-label="bell">
-            🔔
-          </span>
-        </h2>
-        <div className="space-y-2 max-h-52 overflow-y-auto mb-4 pr-1">
-          {notifications.map((note) => (
+  return (
+    <div
+      ref={cardRef}
+      className="absolute right-8 top-16 w-96 bg-white rounded-xl shadow-lg p-5 z-50 border border-gray-200 flex flex-col"
+    >
+      <h2 className="font-semibold text-lg mb-3">Notifications 🔔</h2>
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="text-sm text-gray-500">No notifications yet.</p>
+        ) : (
+          notifications.map((note, i) => (
             <div
-              key={note.id}
-              className="bg-gray-100 rounded p-2 text-sm break-words">
-              {note.text}
+              key={i}
+              className={`rounded p-3 text-sm ${
+                note.isRead ? 'bg-gray-100' : 'bg-purple-100 font-semibold'
+              }`}
+            >
+              {note.message}
+              <div className="text-xs text-gray-400 mt-1">
+                {new Date(note.createdAt).toLocaleString()}
+              </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   return (
     <nav className="bg-white shadow flex items-center justify-between px-8 py-4 sticky top-0 z-50">
-      {/* Left side - logo */}
       <div className="flex items-center gap-6">
         <Link to="/" className="flex place-items-end ml-10">
-          <div className=" rounded-full p-1 ">
-            <img
-              src="/src/asset/logo.png"
-              alt="Unity Logo"
-              className="h-12 w-max"
-            />
-          </div>
+          <img src="/src/asset/logo.png" alt="Unity Logo" className="h-12 w-max" />
         </Link>
       </div>
 
-      {/* Right side - nav items */}
       <ul className="flex items-center gap-8 text-gray-700 font-medium">
-        <li
-          className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/client-dashboard")}
-          title="dashboard">
-          DashBoard
+        <li onClick={() => navigate("/client-dashboard")} className="cursor-pointer hover:text-purple-700">Dashboard</li>
+        <li onClick={() => navigate("/counselor-posts")} className="cursor-pointer hover:text-purple-700">Counselor Posts</li>
+        <li onClick={() => navigate("/")} className="cursor-pointer hover:text-purple-700">Logout</li>
+        <li><NotificationBell onClick={() => setShowNotifications(s => !s)} /></li>
+        <li onClick={() => navigate("/client-complete-profile")} className="cursor-pointer">
+          <img
+            src={
+              profile?.profilePicture
+                ? `http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`
+                : defaultUser
+            }
+            alt="P"
+            className="w-10 h-10 rounded-full border object-cover"
+          />
         </li>
-        <li
-          className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/counselor-posts")}
-          title="Your Posts">
-          Counselor Posts
-        </li>
-       
-        <li
-          className="cursor-pointer hover:text-purple-700 transition"
-          onClick={() => navigate("/")}
-          title="Logout">
-          Logout
-        </li>
-        <li>
-          <NotificationBell onClick={() => setShowNotifications((s) => !s)} />
-        </li>
-      <li
-  onClick={() => navigate("/client-complete-profile")}
-  className="cursor-pointer"
->
-  {profile?.profilePicture ? (
-    <img
-      src={`http://localhost:3000/uploads/profile-pictures/${profile.profilePicture}`}
-      alt="Profile"
-      className="w-10 h-10 rounded-full border object-cover"
-    />
-  ) : (
-    <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-semibold text-lg uppercase">
-      {profile?.user?.firstName?.charAt(0) || "U"}
-    </div>
-  )}
-</li>
       </ul>
 
       <NotificationCard show={showNotifications} />
