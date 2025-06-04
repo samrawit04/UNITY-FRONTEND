@@ -163,7 +163,7 @@ const ProfileForm = () => {
 
 
   return (
-    <div className="min-h-screen bg-purple-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-300 via-purple-200 to-purple-100  flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white bg-opacity-40 rounded-xl shadow-lg p-8">
         {/* Profile Picture Section */}
         <div className="flex flex-col items-center mb-6">

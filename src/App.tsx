@@ -35,6 +35,8 @@ import Psychiatrist from "./pages/careers/Psychiatrist";
 import LicensedTherapist from "./pages/careers/LicensedTherapist";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOsUse";
+import Reschedule from "./pages/client/reschedule"
+import BookSession from "./pages/client/BookSession";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,7 @@ const App = () => (
             <Route path="/services" element={<Index />} />
             <Route path="/select-role" element={<Register />} />
             <Route path="/signup" element={<UserRegister />} />
+            <Route path="/payment/success" element={<BookSession />} />
             <Route
               path="/counselor/complete-profile"
               element={<CounselorRegister />}
@@ -73,6 +76,8 @@ const App = () => (
               path="/counselor-dashboard"
               element={<CounselorDashboard />}
             />
+            
+            <Route path="/reschedule" element={<Reschedule />} />
             <Route path="/counselor-profile" element={<CounselorProfile />} />
             <Route path="/counselor-schedule" element={<CounselorSchedule />} />
             <Route path="/counselor-feedback" element={<CounselorFeedback />} />

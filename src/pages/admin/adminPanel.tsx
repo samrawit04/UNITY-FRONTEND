@@ -15,6 +15,8 @@ function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
+
+
 const AdminPanel = () => {
   const [counselors, setCounselors] = useState([]);
   const [clients, setClients] = useState([]);
@@ -25,7 +27,7 @@ const AdminPanel = () => {
    const [userId, setUserId] = useState("");
   const [activeTab, setActiveTab] = useState(initialTab);
   const [notificationCount, setNotificationCount] = useState(0);
-
+const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch clients
@@ -199,7 +201,7 @@ useEffect(() => {
 
           </nav>
         </div>
-        <button onClick={handleLogout} className="mt-8 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
+        <button onClick={() => navigate("/")} className="mt-8 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
       </aside>
 
       <main className="flex-1 p-8 mt-10 bg-gray-50 overflow-y-auto">
