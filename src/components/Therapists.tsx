@@ -49,43 +49,52 @@ const Therapists = () => {
           Meet Our Highly Experienced Relationship Therapists
         </h2>
       </div>
+
       {/* Scrollable Row */}
       <div className="w-full max-w-6xl overflow-x-auto no-scrollbar">
         <div className="flex gap-20 px-4 mt-10">
           {counselors.length === 0 && (
             <p className="text-center w-full">No counselors found.</p>
           )}
-         {counselors.map((counselor) => {
-  const fullName = `${counselor.firstName || ""} ${counselor.lastName || ""}`.trim();
-  return (
-    <div key={counselor.id} className="flex flex-col items-center flex-shrink-0 min-w-[160px]">
-      <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-4 shadow-md">
-        <Avatar className="w-full h-full rounded-none">
-          <AvatarImage
-            src={
-              counselor.profilePicture
-                ? `http://localhost:3000/uploads/profile-pictures/${counselor.profilePicture}`
-                : undefined
-            }
-            alt={`${fullName}'s profile`}
-            className="object-cover w-full h-full rounded-none"
-          />
-          <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none text-xl font-semibold text-purple-700">
-            {counselor.user?.firstName?.[0] || "?"}
-          </AvatarFallback>
-        </Avatar>
-      </div>
-      <p className="text-md md:text-lg font-semibold text-gray-800 text-center">
-        {fullName || "Therapist"}
-      </p>
-    </div>
-  );
-})}
-
+          {counselors.map((counselor, index) => {
+            const fullName = `${counselor.firstName || ""} ${
+              counselor.lastName || ""
+            }`.trim();
+            return (
+              <div
+                key={counselor.id}
+                className="flex flex-col items-center flex-shrink-0 min-w-[160px] opacity-0 animate-fade-slide"
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                  animationFillMode: "forwards",
+                }}
+              >
+                <div className="w-32 h-40 md:w-40 md:h-48 rounded-lg overflow-hidden mb-4 shadow-md">
+                  <Avatar className="w-full h-full rounded-none overflow-hidden">
+                    <AvatarImage
+                      src={
+                        counselor.profilePicture
+                          ? `http://localhost:3000/uploads/profile-pictures/${counselor.profilePicture}`
+                          : undefined
+                      }
+                      alt={`${fullName}'s profile`}
+                      className="object-cover w-full h-full rounded-none transition-transform duration-300 ease-in-out hover:scale-110"
+                    />
+                    <AvatarFallback className="bg-gray-200 flex items-center justify-center rounded-none text-xl font-semibold text-purple-700">
+                      {counselor.user?.firstName?.[0] || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                <p className="text-md md:text-lg font-semibold text-gray-800 text-center">
+                  {fullName || "Therapist"}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Tailwind utility to hide scrollbar */}
+      {/* Tailwind utility to hide scrollbar and keyframe animation */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -93,6 +102,23 @@ const Therapists = () => {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        @keyframes fade-slide {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-slide {
+          animation-name: fade-slide;
+          animation-duration: 0.5s;
+          animation-timing-function: ease-out;
+          animation-fill-mode: forwards;
         }
       `}</style>
     </div>

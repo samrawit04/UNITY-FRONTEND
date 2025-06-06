@@ -312,6 +312,7 @@ export default function ClientDashboard() {
     const now = new Date();
     const sessionDateTime = new Date(`${session.date} ${session.startTime}`);
     const sessionEndTime = new Date(`${session.date} ${session.endTime}`);
+    console.log(sessionEndTime)
     const tenMinutesBefore = subMinutes(sessionDateTime, 10);
     return isAfter(now, tenMinutesBefore) && isBefore(now, sessionEndTime);
   };
@@ -386,7 +387,7 @@ export default function ClientDashboard() {
               {/* Call to Action */}
               <button
                 onClick={() => navigate("/book-session")}
-                className="bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] text-white font-semibold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-110 animate-glow"
+                className="bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] text-white font-semibold py-3 px-8 rounded-full shadow-lg transition transform hover-scale=105 animate-glow"
               >
                 Book Your First Session
               </button>
@@ -399,7 +400,7 @@ export default function ClientDashboard() {
               <button
                 className={`flex-1 py-4 text-lg font-medium text-center transition-colors ${
                   activeTab === "sessions"
-                    ? "text-indigo-600 border-b-4 border-indigo-600"
+                    ? "text-indigo-600 border-b-4 border-indigoCampos"
                     : "text-gray-500 hover:text-indigo-600"
                 }`}
                 onClick={() => setActiveTab("sessions")}
@@ -590,7 +591,7 @@ export default function ClientDashboard() {
                                 setFormError("");
                               }}
                             >
-                              Rate Counselor
+                              Rate Your session
                             </button>
                           )}
                         </div>
@@ -611,16 +612,19 @@ export default function ClientDashboard() {
       {/* Rating Modal */}
       {modalOpen && selectedCounselor && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <button
-              className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-xl"
-              onClick={() => {
-                setModal(false);
-                setSelectedCounselor(null);
-              }}
-            >
-              ✗
-            </button>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl relative">
+            {!thankYou && (
+              <button
+                className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-xl"
+                onClick={() => {
+                  setModal(false);
+                  setSelectedCounselor(null);
+                  setThankYou(false);
+                }}
+              >
+                ✗
+              </button>
+            )}
             {!thankYou ? (
               <>
                 <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
@@ -664,7 +668,17 @@ export default function ClientDashboard() {
                 </button>
               </>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-8 relative">
+                <button
+                  className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-xl"
+                  onClick={() => {
+                    setModal(false);
+                    setSelectedCounselor(null);
+                    setThankYou(false);
+                  }}
+                >
+                  ✗
+                </button>
                 <h3 className="text-2xl font-semibold text-green-600 mb-2">
                   Thank You!
                 </h3>

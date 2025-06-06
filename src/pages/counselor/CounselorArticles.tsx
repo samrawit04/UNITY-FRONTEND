@@ -1,13 +1,20 @@
 
 import { useState, useEffect } from 'react';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import Navbar from './component/Navbar';
 import { jwtDecode } from 'jwt-decode';
 
 type MyJwtPayload = { id: string; email: string; [key: string]: any };
 
+interface Article {
+  id: string;
+  title: string;
+  description: string;
+  counselorId: string;
+}
+
 const CounselorArticles = () => {
-  const [articles, setArticles] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -17,6 +24,9 @@ const CounselorArticles = () => {
   const [status, setStatus] = useState<string | null>(null);
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingArticleId, setDeletingArticleId] = useState<string | null>(null);
 
   // Decode token and fetch profile on mount
   useEffect(() => {
@@ -66,24 +76,33 @@ const CounselorArticles = () => {
       if (!userId) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
+        const res = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         if (res.ok) {
           const data = await res.json();
-          setArticles(data.reverse());
+          setArticles(Array.isArray(data) ? data : []);
         } else {
           console.error('Failed to fetch articles');
+          setArticles([]);
         }
       } catch (err) {
         console.error('Error fetching articles:', err);
+        setArticles([]);
       }
     };
 
     fetchArticles();
   }, [userId]);
 
-  // Handle posting new article
+  // Handle posting or updating article
   const handlePost = async () => {
-    if (title.trim() === '' || description.trim() === '') return;
+    if (title.trim() === '' || description.trim() === '') {
+      setError('Title and description are required.');
+      return;
+    }
 
     if (!canPost) {
       alert('Your account is not active or approved. You cannot post articles.');
@@ -94,10 +113,16 @@ const CounselorArticles = () => {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:3000/articles/${userId}`, {
-        method: 'POST',
+      const url = editingArticleId
+        ? `http://localhost:3000/articles/${editingArticleId}`
+        : `http://localhost:3000/articles/${userId}`;
+      const method = editingArticleId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({ title, description }),
       });
@@ -106,20 +131,76 @@ const CounselorArticles = () => {
         setTitle('');
         setDescription('');
         setShowForm(false);
+        setEditingArticleId(null);
         // Refresh articles
-        const refreshed = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`);
+        const refreshed = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         if (refreshed.ok) {
           const data = await refreshed.json();
-          setArticles(data.reverse());
+          setArticles(Array.isArray(data) ? data : []);
+        } else {
+          setError('Failed to refresh articles');
         }
       } else {
         const err = await res.json();
-        setError(err.message || 'Failed to post article');
+        setError(err.message || `Failed to ${editingArticleId ? 'update' : 'post'} article`);
       }
     } catch (err: any) {
-      setError('Error posting article: ' + err.message);
+      setError(`Error ${editingArticleId ? 'updating' : 'posting'} article: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle edit article
+  const handleEdit = (article: Article) => {
+    setTitle(article.title);
+    setDescription(article.description);
+    setEditingArticleId(article.id);
+    setShowForm(true);
+  };
+
+  // Handle delete article
+  const handleDelete = async () => {
+    if (!deletingArticleId) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`http://localhost:3000/articles/${deletingArticleId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (res.ok) {
+        // Refresh articles
+        const refreshed = await fetch(`http://localhost:3000/articles/by-counselor/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (refreshed.ok) {
+          const data = await refreshed.json();
+          setArticles(Array.isArray(data) ? data : []);
+        } else {
+          setError('Failed to refresh articles');
+        }
+      } else {
+        const err = await res.json();
+        setError(err.message || 'Failed to delete article');
+      }
+    } catch (err: any) {
+      setError('Error deleting article: ' + err.message);
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setDeletingArticleId(null);
     }
   };
 
@@ -135,9 +216,8 @@ const CounselorArticles = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-300 via-purple-200 to-lavender-100 relative font-poppins overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-lavender-100 relative font-poppins">
       <Navbar />
-
       {/* Heart Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="particle particle-1"></div>
@@ -152,16 +232,18 @@ const CounselorArticles = () => {
         </h1>
 
         {!canPost && (
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 mb-8 shadow-lg border-2 border-red-200 text-center animate-pulse">
-            <p className="text-red-600 text-lg">
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 mb-8 shadow-lg border-2 border-red-200 text-center animate-slide-up">
+            <p className="text-red-600">
               Your account is not active or approved. Please complete your profile and wait for notification!
             </p>
           </div>
         )}
 
         {canPost && showForm && (
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl p-8 mb-10 border-2 border-[#4b2a75]/20 animate-slide-up">
-            <h2 className="text-2xl font-semibold text-[#4b2a75] mb-6">Write a New Article</h2>
+          <div className="bg-white/95 backdrop-blur-md rounded-lg shadow-xl p-8 mb-5 border-2 border-[#4b2a75]/20 animate-slide-up">
+            <h2 className="text-2xl font-semibold text-[#4b2a75] mb-6">
+              {editingArticleId ? 'Edit Article' : 'Write a New Article'}
+            </h2>
 
             {error && (
               <p className="text-red-500 mb-4 bg-red-100/50 p-3 rounded-md">{error}</p>
@@ -183,7 +265,12 @@ const CounselorArticles = () => {
 
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingArticleId(null);
+                  setTitle('');
+                  setDescription('');
+                }}
                 className="px-6 py-2 rounded-lg border border-[#4b2a75] text-[#4b2a75] hover:bg-[#4b2a75]/10 transition"
               >
                 Cancel
@@ -193,7 +280,7 @@ const CounselorArticles = () => {
                 disabled={loading}
                 className="bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] text-white px-8 py-2 rounded-lg shadow-md hover:from-[#3a2057] hover:to-[#6d28d9] transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Posting...' : 'Post Article'}
+                {loading ? (editingArticleId ? 'Updating...' : 'Posting...') : (editingArticleId ? 'Update Article' : 'Post Article')}
               </button>
             </div>
           </div>
@@ -209,7 +296,7 @@ const CounselorArticles = () => {
           </button>
         )}
 
-        <div className="space-y-8">
+        <div className="max-h-[60vh] overflow-y-auto space-y-8 pr-2 no-scrollbar">
           {articles.length === 0 ? (
             <div className="bg-white/80 backdrop-blur-md rounded-2xl p-10 text-center shadow-lg animate-slide-up">
               <div className="mb-6 flex justify-center">
@@ -242,14 +329,37 @@ const CounselorArticles = () => {
               </p>
             </div>
           ) : (
-            articles.map((article, index) => (
+            [...articles].reverse().map((article) => (
               <div
-                key={index}
+                key={article.id}
                 className="bg-white/90 backdrop-blur-md rounded-2xl p-8 shadow-lg border-2 border-[#4b2a75]/10 hover:shadow-xl hover:border-[#4b2a75]/20 transition-transform transform hover:scale-[1.02] animate-slide-up"
               >
-                <h2 className="text-2xl font-bold text-[#4b2a75] mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#4b2a75] to-[#7c3aed]">
-                  {article.title}
-                </h2>
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-[#4b2a75] bg-clip-text text-transparent bg-gradient-to-r from-[#4b2a75] to-[#7c3aed]">
+                    {article.title}
+                  </h2>
+                  {canPost && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(article)}
+                        className="text-[#4b2a75] hover:text-[#7c3aed] transition"
+                        title="Edit Article"
+                      >
+                        <IconEdit size={20} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDeleteModal(true);
+                          setDeletingArticleId(article.id);
+                        }}
+                        className="text-red-500 hover:text-red-700 transition"
+                        title="Delete Article"
+                      >
+                        <IconTrash size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
                   {article.description}
                 </p>
@@ -257,6 +367,38 @@ const CounselorArticles = () => {
             ))
           )}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl p-8 shadow-xl max-w-md w-full border-2 border-[#4b2a75]/20 animate-slide-up">
+              <h3 className="text-xl font-semibold text-[#4b2a75] mb-4">
+                Confirm Deletion
+              </h3>
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to delete this article? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletingArticleId(null);
+                  }}
+                  className="px-6 py-2 rounded-lg border border-[#4b2a75] text-[#4b2a75] hover:bg-[#4b2a75]/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="bg-red-500 text-white px-6 py-2 rounded-lg shadow-md hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -270,6 +412,13 @@ const CounselorArticles = () => {
         }
         .animate-slide-up {
           animation: slide-up 0.7s ease-out;
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
         }
         @keyframes draw-path {
           0% { stroke-dasharray: 500; stroke-dashoffset: 500; }
@@ -338,6 +487,13 @@ const CounselorArticles = () => {
           0% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
           50% { opacity: 0.4; }
           100% { transform: translateY(-80vh) rotate(360deg); opacity: 0; }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>

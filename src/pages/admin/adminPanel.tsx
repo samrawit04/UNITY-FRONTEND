@@ -312,7 +312,8 @@ useEffect(() => {
                     </td>
                     <td className="p-3">
                       <button
-                        onClick={() => window.location.href = `/counselor/${c.id}`}
+                      onClick={() => navigate(`/counselor/${c.id}`)}
+                        // onClick={() => window.location.href = `/counselor/${c.id}`}
                         className="px-3 py-1 rounded border border-purple-500 text-purple-600 hover:bg-purple-100 text-xs"
                       >
                         View Profile

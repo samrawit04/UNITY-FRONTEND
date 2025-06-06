@@ -1,11 +1,10 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { IconArrowLeft, IconArrowRight, IconPlus } from "@tabler/icons-react";
+import { IconArrowLeft, IconArrowRight, IconStarFilled } from "@tabler/icons-react";
 import Navbar from "./component/Navbar";
-import { format, isAfter, subMinutes, isBefore } from "date-fns";
+import { format, isAfter, subMinutes } from "date-fns";
 
 interface MyJwtPayload {
   id: string;
@@ -13,11 +12,19 @@ interface MyJwtPayload {
   [key: string]: any;
 }
 
+interface User {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface Client {
   id: string;
-  firstName: string;
-  lastName: string;
+  user?: User;
+  firstName?: string;
+  lastName?: string;
   image?: string | null;
+  profilePicture?: string;
 }
 
 interface Session {
@@ -29,15 +36,26 @@ interface Session {
   client: Client;
 }
 
+interface Review {
+  id: string;
+  client?: Client;
+  clientId?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export default function CounselorDashboard() {
   const navigate = useNavigate();
   const upcomingScrollRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<any>(null);
   const [counselorId, setCounselorId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [sessionMessages, setSessionMessages] = useState<{ [key: string]: string }>({});
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [errorMessages, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"sessions" | "reviews">("sessions");
 
   // Motivational quotes for carousel
   const quotes = [
@@ -51,7 +69,7 @@ export default function CounselorDashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentQuoteIndex((prev) => (prev + 1) % quotes.length);
-    }, 5000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [quotes.length]);
 
@@ -112,6 +130,36 @@ export default function CounselorDashboard() {
     fetchSessions();
   }, [counselorId]);
 
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!counselorId) {
+        console.warn("No counselorId available, skipping review fetch");
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `http://localhost:3000/reviews/counselor/${counselorId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        console.log("Reviews API response:", JSON.stringify(response.data, null, 2));
+        setReviews(response.data || []);
+        
+        setError(null);
+      } catch (error: any) {
+        console.error("Error fetching reviews:", error.response?.data || error.message);
+        setError("Failed to load reviews. Please try again later.");
+        setReviews([]);
+      }
+    };
+
+    fetchReviews();
+  }, [counselorId]);
+
   // Drag scroll hook
   function useDragScroll(ref: React.RefObject<HTMLDivElement>) {
     useEffect(() => {
@@ -160,12 +208,12 @@ export default function CounselorDashboard() {
 
   useDragScroll(upcomingScrollRef);
 
-  // Scroll buttons
-  const scrollLeft = () => {
-    if (upcomingScrollRef.current) {
-      upcomingScrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
-    }
-  };
+  // // Scroll buttons
+  // const scrollLeft = () => {
+  //   if (upcomingScrollRef.current) {
+  //     upcomingScrollRef.current.scrollBy({ right: 300, behavior: "smooth' });
+  //   }
+  // };
 
   const scrollRight = () => {
     if (upcomingScrollRef.current) {
@@ -173,13 +221,24 @@ export default function CounselorDashboard() {
     }
   };
 
+   const scrollLeft = () => {
+    if (upcomingScrollRef.current) {
+      upcomingScrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
+    }
+  };
+
+
   // Check if session is joinable
   const isSessionJoinable = (session: Session) => {
-    const now = new Date();
-    const sessionDateTime = new Date(`${session.date} ${session.startTime}`);
-    const sessionEndTime = new Date(`${session.date} ${session.endTime}`);
-    const tenMinutesBefore = subMinutes(sessionDateTime, 10);
-    return isAfter(now, tenMinutesBefore) && isBefore(now, sessionEndTime);
+    try {
+      const now = new Date();
+      const sessionDateTime = new Date(`${session.date} ${session.startTime}`);
+      const tenMinutesBefore = subMinutes(sessionDateTime, 10);
+      return isAfter(now, tenMinutesBefore);
+    } catch (error) {
+      console.error("Error checking session joinable status:", error);
+      return false;
+    }
   };
 
   // Handle join session
@@ -187,7 +246,7 @@ export default function CounselorDashboard() {
     if (!isSessionJoinable(session)) {
       setSessionMessages((prev) => ({
         ...prev,
-        [session.id]: "The session is not yet available. Please try again within 10 minutes of the scheduled time.",
+        [session.id]: "The session is not yet available. Please join within 10 minutes of the start time (e.g., 9:50 PM for a 10:00 PM session).",
       }));
       setTimeout(() => {
         setSessionMessages((prev) => ({ ...prev, [session.id]: "" }));
@@ -208,6 +267,21 @@ export default function CounselorDashboard() {
     }
   };
 
+  // Render stars for rating
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <IconStarFilled
+            key={star}
+            size={16}
+            className={star <= rating ? "text-yellow-400" : "text-gray-300"}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-lavender-100 font-poppins relative overflow-hidden">
       <Navbar />
@@ -218,10 +292,12 @@ export default function CounselorDashboard() {
         <div className="particle particle-2"></div>
         <div className="particle particle-3"></div>
         <div className="particle particle-4"></div>
+         <div className="particle particle-5"></div>
+        <div className="particle particle-6"></div>
       </div>
 
       {/* Hero Section */}
-      <header className="relative bg-gradient-to-r from-purple-500 to-purple-800 text-white py-10 px-4 sm:px-6 lg:px-8">
+      <header className="relative bg-gradient-to-r from-violet-500 to-violet-800 text-white py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl sm:text-3xl font-extrabold tracking-tight">
             Welcome, {profile?.firstName || "Counselor"}!
@@ -240,139 +316,221 @@ export default function CounselorDashboard() {
       </header>
 
       <main className="max-w-4xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
+        {/* Tabs */}
+        <div className="flex justify-between    border-b border-gray-200 mb-6">
+          <button
+            className={`py-2 px-4 text-lg font-semibold ${
+              activeTab === "sessions"
+                ? "text-[#4b2a75] border-b-2 border-[#4b2a75]"
+                : "text-gray-500 hover:text-[#4b2a75]"
+            }`}
+            onClick={() => setActiveTab("sessions")}
+          >
+            Upcoming Sessions
+          </button>
+          <button
+            className={`py-2 px-4 text-lg font-semibold ${
+              activeTab === "reviews"
+                ? "text-[#4b2a75] border-b-2 border-[#4b2a75]"
+                : "text-gray-500 hover:text-[#4b2a75]"
+            }`}
+            onClick={() => setActiveTab("reviews")}
+          >
+            Reviews
+          </button>
+        </div>
+
         {errorMessages && (
           <div className="mb-6 p-4 bg-red-500/10 text-red-700 rounded-lg border border-red-200 animate-pulse">
             {errorMessages}
           </div>
         )}
-        {sessions.length === 0 && !errorMessages ? (
-          <section className="relative bg-white/95 rounded-2xl p-8 shadow-lg backdrop-blur-sm animate-slide-up text-center overflow-hidden">
-            <div className="absolute inset-0 animate-gradient-bg" />
-            <div className="relative z-10">
-              {/* Animated SVG Illustration */}
-              <div className="mb-6 flex justify-center">
-                <svg
-                  width="120"
-                  height="120"
-                  viewBox="0 0 200 200"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="animate-draw-path"
-                >
-                  <path
-                    d="M100 150 C80 150, 60 130, 60 100 C60 70, 80 50, 100 50 C120 50, 140 70, 140 100 C140 130, 120 150, 100 150"
-                    stroke="#4b2a75"
-                    strokeWidth="8"
-                    fill="none"
-                    className="heart-path"
-                  />
-                  <path
-                    d="M90 100 L100 110 L110 100"
-                    stroke="#7c3aed"
-                    strokeWidth="6"
-                    fill="none"
-                    className="heart-path"
-                  />
-                </svg>
-              </div>
-              {/* Quote Carousel */}
-              <div className="mb-3 h-20 relative">
-                {quotes.map((quote, index) => (
-                  <p
-                    key={index}
-                    className={`text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] absolute w-full transition-opacity duration-1000 ${
-                      index === currentQuoteIndex ? "opacity-100 scale-100" : "opacity-0 scale-95"
-                    }`}
-                  >
-                    "{quote}"
-                  </p>
-                ))}
-              </div>
-              {/* Call to Action */}
-              <button
-                onClick={() => navigate("/calendar")}
-                className="bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] text-white font-semibold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-110 animate-glow"
-              >
-                Add Availability
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="animate-slide-up">
-            <h2 className="text-2xl font-semibold text-[#4b2a75] text-center mb-6">
-              Upcoming Sessions
-            </h2>
-            <div className="mb-4">
-              {Object.entries(sessionMessages).map(([sessionId, message]) => (
-                message && (
-                  <div key={sessionId} className="text-red-600 text-sm mb-2 animate-pulse">
-                    {message}
+
+        {activeTab === "sessions" && (
+          <>
+            {sessions.length === 0 && !errorMessages ? (
+              <section className="relative bg-white/95 rounded-2xl p-2 shadow-lg backdrop-blur-sm animate-slide-up text-center overflow-hidden">
+                <div className="absolute inset-0 animate-gradient-bg" />
+                <div className="relative z-10">
+                  {/* Animated SVG Illustration */}
+                  <div className="mb-3 flex justify-center">
+                    <svg
+                      width="120"
+                      height="120"
+                      viewBox="0 0 200 200"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="animate-draw-path"
+                    >
+                      <path
+                        d="M100 150 C80 150, 60 130, 60 100 C60 70, 80 50, 100 50 C120 50, 140 70, 140 100 C140 130, 120 150, 100 150"
+                        stroke="#4b2a75"
+                        strokeWidth="8"
+                        fill="none"
+                        className="heart-path"
+                      />
+                      <path
+                        d="M90 100 L100 110 L110 100"
+                        stroke="#7c3aed"
+                        strokeWidth="6"
+                        fill="none"
+                        className="heart-path"
+                      />
+                    </svg>
                   </div>
-                )
-              ))}
-            </div>
-            <div className="relative group">
-              <div
-                ref={upcomingScrollRef}
-                className="flex flex-row overflow-x-auto no-scrollbar snap-x snap-mandatory cursor-grab pb-4"
-              >
-                {sessions.map((session, idx) => {
-                  const fullName = session.client?.firstName === 'Unknown' && !session.client?.lastName
-                    ? 'Pending Client'
-                    : `${session.client?.firstName || 'Unknown'} ${session.client?.lastName || ''}`.trim();
-                  const initial = session.client?.firstName?.charAt(0).toUpperCase() || "?";
+                  {/* Quote Carousel */}
+                  <div className="mb-1 h-20 relative">
+                    {quotes.map((quote, index) => (
+                      <p
+                        key={index}
+                        className={`text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] absolute w-full transition-opacity duration-1000 ${
+                          index === currentQuoteIndex ? "opacity-100 scale-100" : "opacity-0 scale-95"
+                        }`}
+                      >
+                        "{quote}"
+                      </p>
+                    ))}
+                  </div>
+                  {/* Call to Action */}
+                  <button
+                    onClick={() => navigate("/calendar")}
+                    className="bg-gradient-to-r from-[#4b2a75] to-[#7c3aed] text-white font-semibold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-110 animate-glow"
+                  >
+                    Add Availability
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <section className="animate-slide-up">
+                <h2 className="text-2xl font-semibold text-[#4b2a75] text-center mb-6">
+                  Upcoming Sessions
+                </h2>
+                <div className="mb-4">
+                  {Object.entries(sessionMessages).map(([sessionId, message]) => (
+                    message && (
+                      <div key={sessionId} className="text-red-600 text-sm mb-2 animate-pulse">
+                        {message}
+                      </div>
+                    )
+                  ))}
+                </div>
+                <div className="relative group">
+                  <div
+                    ref={upcomingScrollRef}
+                    className="flex flex-row overflow-x-auto no-scrollbar snap-x snap-mandatory cursor-grab pb-4"
+                  >
+                    {sessions.map((session, idx) => {
+                      const fullName =
+                        session.client?.firstName || session.client?.lastName
+                          ? `${session.client.firstName || ""} ${session.client.lastName || ""}`.trim()
+                          : "Client";
+                      const initial = session.client?.firstName?.charAt(0).toUpperCase() || "?";
+
+                      return (
+                        <div
+                          key={session.id || idx}
+                          className="flex-none w-80 bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-md border-2 border-[#4b2a75]/20 mx-2 snap-start hover:shadow-xl transition-transform hover:scale-[1.02]"
+                        >
+                          {session.client?.image || session.client?.profilePicture ? (
+                            <img
+                              src={`http://localhost:3000/uploads/profile-pictures/${session.client.image || session.client.profilePicture}`}
+                              alt={fullName}
+                              className="w-20 h-20 rounded-full mx-auto object-cover mb-3 border-2 border-[#4b2a75]/30"
+                              onError={(e) => (e.currentTarget.src = "/path/to/images/default-avatar.png")}
+                            />
+                          ) : (
+                            <div className="w-20 h-20 rounded-full bg-[#4b2a75]/10 flex items-center justify-center text-2xl font-bold text-[#4b2a75] mx-auto mb-3 border-2 border-[#4b2a75]/30">
+                              {initial}
+                            </div>
+                          )}
+                          <div className="text-lg font-semibold text-[#4b2a75] text-center mb-1">
+                            {fullName}
+                          </div>
+                          <div className="text-gray-600 text-sm text-center">
+                            <span className="font-medium">Date:</span>{" "}
+                            {session.date ? format(new Date(session.date), "MMM d, yyyy") : "N/A"}
+                          </div>
+                          <div className="text-gray-600 text-sm text-center mb-3">
+                            <span className="font-medium">Time:</span> {session.startTime || "N/A"}
+                          </div>
+                          <button
+                            onClick={() => handleJoinSession(session)}
+                            className="w-full bg-[#4b2a75] text-white font-semibold py-2 rounded-full shadow hover:bg-[#3a2057] transition transform hover:scale-105"
+                          >
+                            Join Session
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Scroll Buttons */}
+                  <button
+                    onClick={scrollLeft}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 bg-[#4b2a75]/80 text-white p-2 rounded-full shadow-lg hover:bg-[#4b2a75] transition opacity-0 group-hover:opacity-100"
+                  >
+                    <IconArrowLeft size={24} />
+                  </button>
+                  <button
+                    onClick={scrollRight}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 bg-[#4b2a75]/80 text-white p-2 rounded-full shadow-lg hover:bg-[#4b2a75] transition opacity-0 group-hover:opacity-100"
+                  >
+                    <IconArrowRight size={24} />
+                  </button>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {activeTab === "reviews" && (
+          <section className="animate-slide-up">
+            <h2 className="text-2xl font-semibold text-[#4b2a75] text-center mb-6">Your Reviews</h2>
+            {reviews.length === 0 ? (
+              <div className="text-center text-gray-600">
+                <p>No reviews yet. Keep up the great work!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {reviews.map((review) => {
+                  const fullName =
+                    review.client?.firstName || review.client?.user.lastName
+                      ? `${review.client.user.firstName|| ""} ${review.client.user.lastName || ""}`.trim()
+                      : "client";
+                  const initial = review.client?.user.firstName?.charAt(0).toUpperCase() || "?";
+                  const image = review.client?.image || review.client?.profilePicture;
 
                   return (
                     <div
-                      key={session.id || idx}
-                      className="flex-none w-80 bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-md border-2 border-[#4b2a75]/20 mx-2 snap-start hover:shadow-xl transition-transform hover:scale-[1.02]"
+                      key={review.id}
+                      className="bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-md border-2 border-[#4b2a75]/20 hover:shadow-xl transition-transform hover:scale-[1.02]"
                     >
-                      {session.client?.image ? (
-                        <img
-                          src={`http://localhost:3000/uploads/profile-pictures/${session.client.image}`}
-                          alt={fullName}
-                          className="w-20 h-20 rounded-full mx-auto object-cover mb-3 border-2 border-[#4b2a75]/30"
-                          onError={(e) => (e.currentTarget.src = "/path/to/images/default-avatar.png")}
-                        />
-                      ) : (
-                        <div className="w-20 h-20 rounded-full bg-[#4b2a75]/10 flex items-center justify-center text-2xl font-bold text-[#4b2a75] mx-auto mb-3 border-2 border-[#4b2a75]/30">
-                          {initial}
+                      <div className="flex items-center mb-3">
+                        {image ? (
+                          <img
+                            src={`http://localhost:3000/uploads/profile-pictures/${image}`}
+                            alt={fullName}
+                            className="w-12 h-12 rounded-full object-cover mr-3 border-2 border-[#4b2a75]/30"
+                            onError={(e) => (e.currentTarget.src = "/path/to/images/default-avatar.png")}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-[#4b2a75]/10 flex items-center justify-center text-xl font-bold text-[#4b2a75] mr-3 border-2 border-[#4b2a75]/30">
+                            {initial}
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-lg font-semibold text-[#4b2a75]">{fullName}</div>
+                          <div className="text-sm text-gray-500">
+                            {format(new Date(review.createdAt), "MMM d, yyyy")}
+                          </div>
                         </div>
-                      )}
-                      <div className="text-lg font-semibold text-[#4b2a75] text-center mb-1">
-                        {fullName}
                       </div>
-                      <div className="text-gray-600 text-sm text-center">
-                        <span className="font-medium">Date:</span>{" "}
-                        {session.date ? format(new Date(session.date), "MMM d, yyyy") : "N/A"}
-                      </div>
-                      <div className="text-gray-600 text-sm text-center mb-3">
-                        <span className="font-medium">Time:</span> {session.startTime || "N/A"}
-                      </div>
-                      <button
-                        onClick={() => handleJoinSession(session)}
-                        className="w-full bg-[#4b2a75] text-white font-semibold py-2 rounded-full shadow hover:bg-[#3a2057] transition transform hover:scale-105"
-                      >
-                        Join Session
-                      </button>
+                      <div className="flex mb-2">{renderStars(review.rating)}</div>
+                      <p className="text-gray-600 text-sm">{review.comment || "No comment provided."}</p>
                     </div>
                   );
                 })}
               </div>
-              {/* Scroll Buttons */}
-              <button
-                onClick={scrollLeft}
-                className="absolute left-0 top-1/2 -translate-y-1/2 bg-[#4b2a75]/80 text-white p-2 rounded-full shadow-lg hover:bg-[#4b2a75] transition opacity-0 group-hover:opacity-100"
-              >
-                <IconArrowLeft size={24} />
-              </button>
-              <button
-                onClick={scrollRight}
-                className="absolute right-0 top-1/2 -translate-y-1/2 bg-[#4b2a75]/80 text-white p-2 rounded-full shadow-lg hover:bg-[#4b2a75] transition opacity-0 group-hover:opacity-100"
-              >
-                <IconArrowRight size={24} />
-              </button>
-            </div>
+            )}
           </section>
         )}
       </main>

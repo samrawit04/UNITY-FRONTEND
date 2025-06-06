@@ -57,7 +57,7 @@ const CounselorPosts = () => {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-6">
             {posts.length > 0 ? (
-              posts.map((post) => (
+             [...posts].reverse().map((post) => (
                 <article
                   key={post.id}
                   className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transform transition hover:-translate-y-1 animate-fade-in"
