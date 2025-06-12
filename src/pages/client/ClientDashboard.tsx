@@ -405,7 +405,7 @@ export default function ClientDashboard() {
                 }`}
                 onClick={() => setActiveTab("sessions")}
               >
-                Your Sessions
+                Booked Sessions
               </button>
               <button
                 className={`flex-1 py-4 text-lg font-medium text-center transition-colors ${

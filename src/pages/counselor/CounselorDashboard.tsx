@@ -403,7 +403,7 @@ export default function CounselorDashboard() {
             ) : (
               <section className="animate-slide-up">
                 <h2 className="text-2xl font-semibold text-[#4b2a75] text-center mb-6">
-                  Upcoming Sessions
+                 Booked Sessions
                 </h2>
                 <div className="mb-4">
                   {Object.entries(sessionMessages).map(([sessionId, message]) => (

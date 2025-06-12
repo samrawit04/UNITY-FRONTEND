@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { IconBrandGoogle } from "@tabler/icons-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -12,7 +11,6 @@ const Login = () => {
   });
 
   const [error, setError] = useState("");
-
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,

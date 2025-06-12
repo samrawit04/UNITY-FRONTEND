@@ -253,7 +253,7 @@ const ProfileForm = () => {
               onClick={() => navigate("/client-dashboard")}
               className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-12 rounded-lg shadow-md transition-all"
             >
-              Later
+              cancel
             </button>
           </div>
         </form>

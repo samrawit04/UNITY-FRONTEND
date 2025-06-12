@@ -373,7 +373,7 @@ const SelectTimeSlot: React.FC = () => {
               onClick={() => navigate("/client-dashboard")}
               className="bg-gray-200 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-300 transition transform hover:scale-105"
             >
-              Back
+              Cancel
             </button>
             <button
               onClick={handleRebook}

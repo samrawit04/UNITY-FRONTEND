@@ -81,7 +81,7 @@ const Hero = () => {
         >
           <Link to="/select-role">
             <Button className="bg-white hover:bg-[#3a2057] hover:text-white text-black rounded-full px-8 py-5 flex items-center gap-2">
-              <span>Start Your Journey</span>
+              <span>Register Now</span>
               <span className="flex items-center justify-center rounded-full bg-black w-5 h-5 text-white">→</span>
             </Button>
           </Link>

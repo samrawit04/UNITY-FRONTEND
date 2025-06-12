@@ -24,7 +24,6 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import ResetSuccess from "./pages/auth/ResetPasswordSuccess";
 import ResetPasswordForm from "./pages/auth/ResetPasswordForm";
 import Calendar from "./pages/counselor/Calendar";
-
 import AdminPanel from "./pages/admin/adminPanel";
 import CounselorDetail from "./pages/admin/counselor.detail";
 import PaymentSuccess from "./pages/client/paymentSuccess";
@@ -55,10 +54,7 @@ const App = () => (
             <Route path="/select-role" element={<Register />} />
             <Route path="/signup" element={<UserRegister />} />
             <Route path="/payment/success" element={<BookSession />} />
-            <Route
-              path="/counselor/complete-profile"
-              element={<CounselorRegister />}
-            />
+            <Route path="/counselor/complete-profile" element={<CounselorRegister />} />
             <Route path="/terms" element={<TermsOfUse />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<Login />} />
@@ -66,17 +62,10 @@ const App = () => (
             <Route path="/reset-success" element={<ResetSuccess />} />
             <Route path="/reset-form" element={<ResetPasswordForm />} />
             <Route path="/verify-email" element={<EmailVerification />} />{" "}
-            <Route
-              path="/client-complete-profile"
-              element={<ClientCompleteProfile />}
-            />
+            <Route path="/client-complete-profile" element={<ClientCompleteProfile />} />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
             <Route path="/counselor-posts" element={<CounselorPosts />} />
-            <Route
-              path="/counselor-dashboard"
-              element={<CounselorDashboard />}
-            />
-            
+            <Route path="/counselor-dashboard" element={<CounselorDashboard />}  />    
             <Route path="/reschedule" element={<Reschedule />} />
             <Route path="/counselor-profile" element={<CounselorProfile />} />
             <Route path="/counselor-schedule" element={<CounselorSchedule />} />
@@ -89,17 +78,10 @@ const App = () => (
             <Route path="/adminPanel" element={<AdminPanel />} />
             <Route path="/Counselor/:userId" element={<CounselorDetail />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
-            PaymentSuccess
             <Route path="/careers/therapist" element={<LicensedTherapist />} />
             <Route path="/careers/psychiatrist" element={<Psychiatrist />} />
-            <Route
-              path="/careers/social-worker"
-              element={<ClinicalSocialWorker />}
-            />
-            <Route
-              path="/careers/administrative"
-              element={<AdministrativeProfessional />}
-            />
+            <Route path="/careers/social-worker" element={<ClinicalSocialWorker />} />
+            <Route path="/careers/administrative" element={<AdministrativeProfessional />} />
             <Route path="/careers" element={<Careers />} />
           </Routes>
         </div>
